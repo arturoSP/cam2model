@@ -1,3 +1,6 @@
+---
+output: github_document
+---
 
 # cam2model: Preprocessing Camera Trap Data for Machine Learning Models
 
@@ -12,23 +15,24 @@ wildlife analysis projects.
 
 ## Key Features
 
-- Extract EXIF metadata directly from images.
+-   Extract EXIF metadata directly from images.
 
-- Dynamically process and analyze metadata columns, such as UserComment.
+-   Dynamically process and analyze metadata columns, such as
+    UserComment.
 
-- Automatically select daytime images for training.
+-   Automatically select daytime images for training.
 
-- Tools for generating image subsets, copying files to destination
-  folders, and creating annotation databases.
+-   Tools for generating image subsets, copying files to destination
+    folders, and creating annotation databases.
 
-- Generate custom plots to explore and visualize metadata.
+-   Generate custom plots to explore and visualize metadata.
 
-## Core Functions
+## Core Functions 
 
 ### 1. `rename_images_with_date()`
 
 Renames images based on their EXIF metadata and organizes files into
-structured directories.
+structured directories. 
 
 #### Parameters
 
@@ -40,15 +44,14 @@ structured directories.
 
 - Extracts the file modification date from EXIF data.
 
-- Generates unique names that include the date, camera name, and
-  subfolder.
+- Generates unique names that include the date, camera name, and subfolder.
 
 - Copies the renamed images without modifying the originals.
 
-### 2. `extract_metadata()`
+### 2.  `extract_metadata()`
 
 Extracts metadata from all images in a directory and organizes the
-information into a tibble.
+information into a tibble. 
 
 #### Parameters
 
@@ -56,15 +59,14 @@ main_dir: Main directory containing folders with renamed images.
 
 #### Features
 
-- Reads EXIF metadata such as FileModifyDate, Camera, and other key
-  attributes.
+- Reads EXIF metadata such as FileModifyDate, Camera, and other key attributes.
 
 - Returns a consolidated tibble with metadata from all cameras.
 
-### 3. `parse_user_comment()`
+### 3.  `parse_user_comment()`
 
 Processes the UserComment column in the metadata and extracts key
-values.
+values. 
 
 #### Parameters
 
@@ -74,14 +76,13 @@ values.
 
 - Splits UserComment into multiple columns based on keys and values.
 
-- Extracts and calculates additional information, such as timestamps
-  (Image_dttm) and hours (File_hour).
+- Extracts and calculates additional information, such as timestamps (Image_dttm) and hours (File_hour).
 
 - Integrates the processed data into the original tibble.
 
-### 4. `generate_plot()`
+### 4.  `generate_plot()`
 
-Creates custom plots based on metadata.
+Creates custom plots based on metadata. 
 
 #### Parameters
 
@@ -109,10 +110,10 @@ Creates custom plots based on metadata.
 
 - Useful for exploring trends in image data.
 
-### 5. `process_training_images()`
+### 5.  `process_training_images()`
 
 Filters daytime images, samples a subset, copies the selected files to a
-destination folder, and creates an annotation database.
+destination folder, and creates an annotation database. 
 
 #### Parameters
 
@@ -120,8 +121,7 @@ destination folder, and creates an annotation database.
 
 - dest_dir: Destination directory where selected images will be copied.
 
-- output_sample_file: Path to save the sampled images’ metadata as a CSV
-  file.
+- output_sample_file: Path to save the sampled images' metadata as a CSV file.
 
 - output_annotation_file: Path to save the annotation file.
 
@@ -137,28 +137,27 @@ destination folder, and creates an annotation database.
 
 - Randomly selects a percentage of images per directory.
 
-- Copies selected images to a new directory and saves annotation
-  information.
+- Copies selected images to a new directory and saves annotation information.
 
-## Example Workflow
+## Example Workflow 
 
 #### Step 1: Rename images
 
-``` r
+```{r, eval=FALSE}
 rename_images_with_date(main_dir = "C:/raw_images", output_dir =
 "C:/renamed_images")
 ```
 
 #### Step 2: Extract and process metadata
 
-``` r
+```{r, eval=FALSE}
 metadata \<- extract_metadata(main_dir = "C:/renamed_images")
 processed_metadata \<- parse_user_comment(metadata)
 ```
 
 #### Step 3: Generate exploratory plots
 
-``` r
+```{r, eval=FALSE}
 generate_plot( metadata = processed_metadata, x = Image_dttm, y = temp,
 color = Camera, facets = Camera, filter_expr = File_date \<=
 "2024-08-26", breaks = "1 day", date_labels = "%d %b", angle = 30 )
@@ -166,7 +165,7 @@ color = Camera, facets = Camera, filter_expr = File_date \<=
 
 #### Step 4: Select images for training
 
-``` r
+```{r, eval=FALSE}
 process_training_images( metadata_file = "processed_metadata.csv",
 dest_dir = "C:/train_images", output_sample_file = "sampled_images.csv",
 output_annotation_file = "annotation_data.csv", sample_proportion = 0.5,
