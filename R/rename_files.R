@@ -9,16 +9,16 @@
 #' @importFrom exifr read_exif
 #' @export
 #' @examples
-#' # Define rutas de entrada y salida
-#' main_dir <- "C:/IA_fish_12_26_ago_2024"
-#' output_dir <- "C:/rename_IA_fish_12_26_ago_2024"
+#' # Define input and output paths
+#' main_dir <- "~/Descargas/DSCF0099"
+#' output_dir <- "~/Descargas/test1"
 #'
-#' # Ejecuta la función
-#' renamed_files <- rename_images_with_date(main_dir, output_dir)
+#' # Run the function
+#' renamed_files <- rename_images(main_dir, output_dir)
 #'
-#' # Revisión de resultados
 #' print(renamed_files)
 #'
+
 
 rename_images <- function(main_dir, output_dir) {
   # Validations
@@ -57,7 +57,10 @@ rename_images <- function(main_dir, output_dir) {
 
     for (subfolder in subfolders) {
       # List all image files in the subfolder
-      images <- list.files(subfolder, full.names = TRUE, pattern = "\\.(jpg|jpeg|png|tiff|bmp)$", ignore.case = TRUE)
+      images <- list.files(subfolder,
+                           full.names = TRUE,
+                           pattern = "\\.(jpg|jpeg|png|tiff|bmp)$",
+                           ignore.case = TRUE)
 
       for (image in images) {
         # Read EXIF data
@@ -67,7 +70,8 @@ rename_images <- function(main_dir, output_dir) {
         )
 
         # Extract the file modification date or assign a default
-        date_taken <- if (!is.null(exif_data) && !is.null(exif_data$FileModifyDate[1])) {
+        date_taken <- if (!is.null(exif_data) &&
+                          !is.null(exif_data$FileModifyDate[1])) {
           # Clean date format for file names
           gsub(":", "-", gsub(" ", "_", exif_data$FileModifyDate[1]))
         } else {
@@ -76,12 +80,16 @@ rename_images <- function(main_dir, output_dir) {
 
         # Create new name for the file
         image_name <- basename(image)
-        new_name <- paste(date_taken, camera_name, basename(subfolder), image_name, sep = "_")
+        new_name <- paste(date_taken,
+                          camera_name, basename(subfolder),
+                          image_name, sep = "_")
         new_path <- file.path(camera_output_dir, new_name)
 
         # Copy the file and log the operation
         if (file.copy(image, new_path)) {
-          renamed_files <- tibble::add_row(renamed_files, original_path = image, new_path = new_path)
+          renamed_files <- tibble::add_row(renamed_files,
+                                           original_path = image,
+                                           new_path = new_path)
         }
       }
     }

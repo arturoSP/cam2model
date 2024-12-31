@@ -3,7 +3,7 @@
 #' This function generates ggplot visualizations for the provided metadata,
 #' allowing dynamic specification of axes, color, and additional filtering.
 #'
-#' @param metadata A data frame containing the metadata.
+#' @param processed_metadata A data frame containing the processed_metadata.
 #' @param x Character. The column name to use for the x-axis.
 #' @param y Character. The column name to use for the y-axis.
 #' @param color Character. (Optional) The column name to use for coloring the points/lines.
@@ -15,24 +15,33 @@
 #' @return A ggplot object.
 #' @importFrom ggplot2 ggplot aes geom_line geom_point facet_wrap scale_x_datetime theme element_text
 #' @importFrom dplyr filter
-#' @importFrom rlang enquo eval_tidy
+#' @importFrom rlang enquo quo_is_null
 #' @export
 #' @examples
-#' # Línea de tiempo temperatura por cámara
-#' generate_plot(metadata = metadata, x = Image_dttm, y = temp, color = Camera, facets = Camera, filter_expr = File_date <= "2024-08-27")
-#' # Línea de tiempo de luminancia con color
-#' generate_plot(metadata = metadata, x = Image_dttm, y = bLuma, color = Camera, facets = Camera, filter_expr = File_date <= "2024-08-27")
-#' # Puntos de luminancia filtrados por valor mínimo
-#' generate_plot(metadata = metadata, x = Image_dttm, y = bLuma, color = Camera, facets = Camera, filter_expr = File_date <= "2024-08-27" & bLuma >= 250)
+#' # Timeline of temperature for each camera
+#' generate_plot(processed_metadata = processed_metadata,
+#'               x = Image_dttm, y = temp,
+#'               color = Camera, facets = Camera,
+#'               filter_expr = File_date <= "2024-08-27")
+#' # Timeline of brightness luminance and color
+#' generate_plot(processed_metadata = processed_metadata,
+#'               x = Image_dttm, y = bLuma,
+#'               color = Camera, facets = Camera,
+#'               filter_expr = File_date <= "2024-08-27")
+#' # Brightness luminance points filtered by minimum values
+#' generate_plot(processed_metadata = processed_metadata,
+#'               x = Image_dttm, y = bLuma,
+#'               color = Camera, facets = Camera,
+#'               filter_expr = File_date <= "2024-08-27" & bLuma >= 250)
 #'
 
 
 
-generate_plot <- function(metadata, x, y, color = NULL, facets = NULL,
+generate_plot <- function(processed_metadata, x, y, color = NULL, facets = NULL,
                           filter_expr = NULL, breaks = NULL, date_labels = NULL, angle = 0) {
   # Validate inputs
-  if (missing(metadata) || !is.data.frame(metadata)) {
-    stop("The 'metadata' argument must be a data frame.")
+  if (missing(processed_metadata) || !is.data.frame(processed_metadata)) {
+    stop("The 'processed_metadata' argument must be a data frame.")
   }
   if (missing(x) || missing(y)) {
     stop("Both 'x' and 'y' arguments must be specified.")
@@ -47,11 +56,11 @@ generate_plot <- function(metadata, x, y, color = NULL, facets = NULL,
 
   # Apply filtering if filter expression is provided
   if (!rlang::quo_is_null(filter_expr)) {
-    metadata <- dplyr::filter(metadata, !!filter_expr)
+    processed_metadata <- dplyr::filter(processed_metadata, !!filter_expr)
   }
 
   # Start building the plot
-  p <- ggplot(metadata, aes(x = !!x, y = !!y))
+  p <- ggplot(processed_metadata, aes(x = !!x, y = !!y))
 
   # Add color aesthetic if specified
   if (!rlang::quo_is_null(color)) {

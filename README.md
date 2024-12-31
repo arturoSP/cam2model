@@ -161,7 +161,7 @@ processed_metadata \<- parse_user_comment(metadata)
 ``` r
 generate_plot( metadata = processed_metadata, x = Image_dttm, y = temp,
 color = Camera, facets = Camera, filter_expr = File_date \<=
-"2024-08-26", breaks = "1 day", date_labels = "%d %b", angle = 30 )
+"2024-08-12", breaks = "1 day", date_labels = "%d %b", angle = 30 )
 ```
 
 #### Step 4: Select images for training

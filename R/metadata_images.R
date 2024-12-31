@@ -3,7 +3,7 @@
 #' Extracts EXIF metadata from images in a directory, processes the 'UserComment' column,
 #' and saves the resulting metadata to a CSV file.
 #'
-#' @param main_dir Character. Path to the main directory containing camera folders with renamed images.
+#' @param output_dir Character. Path to the main directory containing camera folders with renamed images.
 #' @param output_file Character. Path to the output CSV file where metadata will be saved.
 #' @return A tibble with the processed metadata.
 #' @importFrom exifr read_exif
@@ -14,21 +14,22 @@
 #' @importFrom readr write_csv
 #' @export
 #' @examples
-#' # Define directorios
-#' main_dir <- "C:/rename_IA_fish_12_26_ago_2024"
-#' output_file <- "12_26_ago_2024_images_metadata.csv"
+#' # Define paths
+#' output_dir <- "~/Descargas/test1"
+#' output_file <- "12_ago_2024_metadata.csv"
 #'
-#' # Ejecuta la función consolidada
-#' metadata <- process_camera_trap_metadata(main_dir, output_file)
+#' # Run the function
+#' metadata <- process_metadata(output_dir, output_file)
 #'
-#' # Revisa los resultados
 #' print(metadata)
 #'
 
-process_metadata <- function(main_dir, output_file) {
+
+
+process_metadata <- function(output_dir, output_file) {
   # Validations
-  if (!dir.exists(main_dir)) {
-    stop("The main directory does not exist: ", main_dir)
+  if (!dir.exists(output_dir)) {
+    stop("The main directory does not exist: ", output_dir)
   }
   if (missing(output_file)) {
     stop("Please provide an output file path.")
@@ -36,7 +37,8 @@ process_metadata <- function(main_dir, output_file) {
 
   # Helper function: Parse UserComment
   parse_user_comment <- function(df) {
-    if ("UserComment" %in% colnames(df) && any(!is.na(df$UserComment))) {
+    if ("UserComment" %in% colnames(df) &&
+        any(!is.na(df$UserComment))) {
       user_comment_data <- df |>
         mutate(UserComment = strsplit(UserComment, ",")) |>
         tidyr::unnest(UserComment) |>
@@ -52,28 +54,42 @@ process_metadata <- function(main_dir, output_file) {
           values_fn = list(value = ~ paste(unique(.), collapse = ","))
         ) |>
         mutate(
-          Image_dttm = ymd_hms(str_replace_all(str_sub(FileName, 1, 19), c("-" = ":", "_" = " "))),
+          Image_dttm = ymd_hms(str_replace_all(
+            str_sub(FileName, 1, 19), c("-" = ":", "_" = " ")
+          )),
           File_hms = format(Image_dttm, "%H:%M:%S"),
           File_hour = hour(Image_dttm),
           File_minute = minute(Image_dttm),
           File_date = date(Image_dttm)
         ) |>
-        relocate(c(Image_dttm, File_date, File_hms, File_hour, File_minute), .after = FileModifyDate) |>
-        select(-c(FileModifyDate, FileAccessDate, FileInodeChangeDate))
+        relocate(c(Image_dttm, File_date, File_hms, File_hour, File_minute),
+                 .after = FileModifyDate) |>
+        select(FileName, HV1.1.9.4, ID,
+               moon, temp, bLuma,
+               sEV, cEv, batAdc, batPer,
+               Image_dttm, File_date, File_hms, File_hour, File_minute)
 
       df <- df |>
         select(-UserComment) |>
-        left_join(user_comment_data, by = "FileName")
+        left_join(user_comment_data, by = "FileName") |>
+        relocate(c(Image_dttm, File_date, File_hms, File_hour, File_minute),
+                 .after = FileModifyDate) |>
+        select(-c(FileModifyDate, FileAccessDate, FileInodeChangeDate))
     }
     return(df)
   }
 
   # Extract Metadata
-  cameras <- list.dirs(main_dir, recursive = FALSE)
+  cameras <- list.dirs(output_dir, recursive = FALSE)
 
   extract_camera_metadata <- function(camera_dir) {
     camera_name <- basename(camera_dir)
-    images <- list.files(camera_dir, full.names = TRUE, pattern = "\\.(jpg|png)$", ignore.case = TRUE)
+    images <- list.files(
+      camera_dir,
+      full.names = TRUE,
+      pattern = "\\.(jpg|png)$",
+      ignore.case = TRUE
+    )
 
     if (length(images) > 0) {
       metadata <- exifr::read_exif(images)
@@ -90,7 +106,9 @@ process_metadata <- function(main_dir, output_file) {
   processed_metadata <- parse_user_comment(all_metadata)
 
   # Save to CSV
-  readr::write_csv(processed_metadata, file = output_file)
+  readr::write_csv(processed_metadata, file = paste(output_dir,
+                                                     output_file,
+                                                     sep = "/"))
 
   # Return the processed metadata
   return(processed_metadata)
