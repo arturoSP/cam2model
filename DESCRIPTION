@@ -1,12 +1,25 @@
 Package: cam2model
-Title: What the Package Does (One Line, Title Case)
+Title: Preprocessing Camera Trap Data for Machine Learning Models
 Version: 0.0.0.9000
-Authors@R: 
-    person("First", "Last", , "first.last@example.com", role = c("aut", "cre"),
-           comment = c(ORCID = "YOUR-ORCID-ID"))
-Description: What the package does (one paragraph).
-License: `use_mit_license()`, `use_gpl3_license()` or friends to pick a
-    license
+Authors@R: : c(person(given = "Edlin", 
+                      family = "Guerra-Castro", 
+                      role = c("aut", "cph"), 
+                      email = "edlinguerra@gmail.com",
+                      comment = c(ORCID = "0000-0003-3529-4507")),
+               person(given = "Arturo", 
+                      family = "Sanchez-Porras", 
+                      role = c("aut", "cre"), 
+                      email = "sp.arturo@gmail.com",
+                      comment = c(ORCID = "0000-0002-1691-286X")))
+Description: The `cam2model` package provides tools for preprocessing camera trap
+    image data to prepare it for training machine learning models. It automates tasks 
+    such as extracting EXIF metadata, processing and analyzing image attributes, 
+    selecting relevant images (e.g., daytime photos), sampling subsets, and managing
+    file organization. These features streamline the workflow for ecological research
+    and wildlife monitoring projects. Additionally, the package includes tools for 
+    generating exploratory visualizations and creating annotation datasets.
+License: GPL (>= 3)
 Encoding: UTF-8
 Roxygen: list(markdown = TRUE)
 RoxygenNote: 7.3.1
+Imports: dplyr, tidyr, lubridate, stringr, ggplot2, readr, fs, purrr, exifr, rlang

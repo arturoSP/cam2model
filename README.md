@@ -145,23 +145,21 @@ destination folder, and creates an annotation database.
 #### Step 1: Rename images
 
 ``` r
-rename_images_with_date(main_dir = "C:/raw_images", output_dir =
-"C:/renamed_images")
+rename_images(main_dir = "C:/raw_images", output_dir = "C:/renamed_images")
 ```
 
 #### Step 2: Extract and process metadata
 
 ``` r
-metadata \<- extract_metadata(main_dir = "C:/renamed_images")
-processed_metadata \<- parse_user_comment(metadata)
+metadata <- process_metadata(output_dir = "C:/renamed_images", output_file = "metadata.csv")
 ```
 
 #### Step 3: Generate exploratory plots
 
 ``` r
-generate_plot( metadata = processed_metadata, x = Image_dttm, y = temp,
-color = Camera, facets = Camera, filter_expr = File_date \<=
-"2024-08-12", breaks = "1 day", date_labels = "%d %b", angle = 30 )
+generate_plot(processed_metadata = metadata, x = Image_dttm, y = temp,
+color = Camera, facets = Camera, filter_expr = File_hms <=
+"08:55:00", angle = 30 )
 ```
 
 #### Step 4: Select images for training
@@ -170,7 +168,7 @@ color = Camera, facets = Camera, filter_expr = File_date \<=
 process_training_images( metadata_file = "processed_metadata.csv",
 dest_dir = "C:/train_images", output_sample_file = "sampled_images.csv",
 output_annotation_file = "annotation_data.csv", sample_proportion = 0.5,
-date_cutoff = as.Date("2024-08-26"), start_hour = 6, end_hour = 18 )
+start_hour = 6, end_hour = 18 )
 ```
 
 ## Requirements
