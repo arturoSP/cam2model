@@ -9,11 +9,9 @@
 #' @param color Character. (Optional) The column name to use for coloring the points/lines.
 #' @param facets Character. (Optional) The column name for facet wrapping.
 #' @param filter_expr Expression. (Optional) An expression to filter the metadata.
-#' @param breaks Character or NULL. (Optional) Breaks for the x-axis (e.g., "1 day", "1 hour").
-#' @param date_labels Character. (Optional) Date format for x-axis labels.
 #' @param angle Numeric. (Optional) Angle for x-axis text. Default is 0.
 #' @return A ggplot object.
-#' @importFrom ggplot2 ggplot aes geom_line geom_point facet_wrap scale_x_datetime theme element_text
+#' @importFrom ggplot2 ggplot aes geom_line geom_point facet_wrap scale_x_datetime theme element_text vars
 #' @importFrom dplyr filter
 #' @importFrom rlang enquo quo_is_null
 #' @export
@@ -38,7 +36,7 @@
 
 
 generate_plot <- function(processed_metadata, x, y, color = NULL, facets = NULL,
-                          filter_expr = NULL, breaks = NULL, date_labels = NULL, angle = 0) {
+                          filter_expr = NULL, angle = 0) {
   # Validate inputs
   if (missing(processed_metadata) || !is.data.frame(processed_metadata)) {
     stop("The 'processed_metadata' argument must be a data frame.")
@@ -76,14 +74,6 @@ generate_plot <- function(processed_metadata, x, y, color = NULL, facets = NULL,
   # Add facets if specified
   if (!rlang::quo_is_null(facets)) {
     p <- p + facet_wrap(vars(!!facets))
-  }
-
-  # Customize x-axis breaks and labels if provided
-  if (!is.null(breaks) || !is.null(date_labels)) {
-    p <- p + scale_x_datetime(
-      breaks = breaks,
-      date_labels = date_labels
-    )
   }
 
   # Customize x-axis text angle

@@ -9,7 +9,7 @@
 #' @importFrom exifr read_exif
 #' @importFrom dplyr bind_rows mutate select left_join relocate
 #' @importFrom tidyr separate_wider_delim pivot_wider unnest
-#' @importFrom stringr strsplit str_replace_all str_sub
+#' @importFrom stringr str_split str_replace_all str_sub
 #' @importFrom lubridate ymd_hms hour minute date
 #' @importFrom readr write_csv
 #' @export

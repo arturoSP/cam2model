@@ -8,11 +8,10 @@
 #' @param output_sample_file Character. Path to save the sampled images' metadata as a CSV file.
 #' @param output_annotation_file Character. Path to save the annotation file.
 #' @param sample_proportion Numeric. Proportion of images to sample (default is 0.5).
-#' @param date_cutoff Date. Maximum date to include images (default is `Sys.Date()`).
 #' @param start_hour Numeric. Start of daytime hours (default is 6).
 #' @param end_hour Numeric. End of daytime hours (default is 18).
 #' @return A tibble with the sampled images' metadata.
-#' @importFrom dplyr filter group_by summarise select mutate reframe
+#' @importFrom dplyr filter group_by summarise select mutate reframe n
 #' @importFrom readr read_csv write_csv
 #' @importFrom fs dir_create
 #' @export
@@ -44,15 +43,23 @@ process_training_images <- function(metadata_file,
                                     output_sample_file,
                                     output_annotation_file,
                                     sample_proportion = 0.5,
-                                    date_cutoff = Sys.Date(), # este puede ser innecesario, debería hacerse a mano o hacerlo NULL y si existe filtrarlo
                                     start_hour = 6,
                                     end_hour = 18) {
+  # # parameters for testing
+  # metadata_file <- "~/Descargas/test2/metadatos_completos.csv"
+  # date_cutoff <- Sys.Date()
+  # start_hour <- 6
+  # end_hour <- 18
+  # sample_proportion <- 0.5
+  # dest_dir <- "~/Descargas/test2/dest_rbfl"
+  # output_sample_file <- "output_rbfl.csv"
+  # output_annotation_file <- "annotation_rbfl"
+
   # Load metadata
   metadata <- read_csv(metadata_file)
 
   # Filter daytime images
   daytime_images <- metadata |>
-    filter(File_date <= date_cutoff) |>
     filter(File_hour >= start_hour & File_hour <= end_hour) |>
     select(Directory, FileName, File_date, File_hour)
 
@@ -69,13 +76,13 @@ process_training_images <- function(metadata_file,
     group_by(Directory) |>
     reframe(FileName = sample(FileName, samp_size))
 
-  # Save sampled metadata
-  write_csv(sampled_images, file = output_sample_file)
-
   # Create destination directory if it doesn't exist
   if (!dir.exists(dest_dir)) {
     fs::dir_create(dest_dir)
   }
+
+  # Save sampled metadata
+  write_csv(sampled_images, file = paste(dest_dir, output_sample_file, sep = "/"))
 
   # Ensure necessary columns are present
   if (!all(c("Directory", "FileName") %in% colnames(sampled_images))) {
@@ -94,7 +101,9 @@ process_training_images <- function(metadata_file,
     select(FileName) |>
     mutate(Annotation = NA, fish = NA, turtle = NA)
 
-  write_csv(annotation_data, file = output_annotation_file, na = "")
+  write_csv(annotation_data,
+            file = paste(dest_dir, output_annotation_file, sep = "/"),
+            na = "")
 
   return(sampled_images)
 }
