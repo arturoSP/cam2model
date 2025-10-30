@@ -10,8 +10,11 @@ process_training_images(
   output_sample_file,
   output_annotation_file,
   sample_proportion = 0.5,
-  start_hour = 6,
-  end_hour = 18
+  filter_by,
+  min_lum = NULL,
+  max_lum = NULL,
+  min_per_dir = 1,
+  max_per_dir = Inf
 )
 }
 \arguments{
@@ -25,9 +28,18 @@ process_training_images(
 
 \item{sample_proportion}{Numeric. Proportion of images to sample (default is 0.5).}
 
-\item{start_hour}{Numeric. Start of daytime hours (default is 6).}
+\item{filter_by}{Unquoted column name giving the luminosity variable to be used for filtering
+(e.g. \code{bLuma})}
 
-\item{end_hour}{Numeric. End of daytime hours (default is 18).}
+\item{min_lum}{Numeric. Lower luminosity threshold. Images with luminosity below this value are
+excluded. If \code{NULL}, the minimum of \code{filter_by} in the data is used.}
+
+\item{max_lum}{Numeric. Upper luminosity threshold. Images with luminosity above this value are
+excluded. If \code{NULL}, the maximum of \code{filter_by} in the data is used.}
+
+\item{min_per_dir}{Integer. Minimum number of images to sample per directory (default 1).}
+
+\item{max_per_dir}{Integer. Maximum number of images to sample per directory (default Inf).}
 }
 \value{
 A tibble with the sampled images' metadata.
@@ -37,25 +49,22 @@ This function filters metadata to select daytime images for training, samples a 
 copies the sampled images to a destination directory, and generates a CSV file for further annotation.
 }
 \examples{
-# Define parámetros
+# Parameters
 metadata_file <- "12_26_ago_2024_images_metadata.csv"
 dest_dir <- "C:/train.images_ago_2024"
 output_sample_file <- "ago_2024_images_sampled.csv"
 output_annotation_file <- "images_ago_2024.csv"
 
-# Ejecutar la función
+# Example call
 sampled_images <- process_training_images(
   metadata_file = metadata_file,
   dest_dir = dest_dir,
   output_sample_file = output_sample_file,
   output_annotation_file = output_annotation_file,
   sample_proportion = 0.5,
-  date_cutoff = as.Date("2024-08-26"),
-  start_hour = 6,
-  end_hour = 18
+  filter_by = bLuma
 )
 
-# Revisar resultados
 print(sampled_images)
 
 }

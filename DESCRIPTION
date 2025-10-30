@@ -1,7 +1,7 @@
 Package: cam2model
 Title: Preprocessing Camera Trap Data for Machine Learning Models
-Version: 0.0.0.9000
-Authors@R: : c(person(given = "Edlin", 
+Version: 0.1.0
+Authors@R: c(person(given = "Edlin", 
                       family = "Guerra-Castro", 
                       role = c("aut", "cph"), 
                       email = "edlinguerra@gmail.com",
@@ -21,5 +21,5 @@ Description: The `cam2model` package provides tools for preprocessing camera tra
 License: GPL (>= 3)
 Encoding: UTF-8
 Roxygen: list(markdown = TRUE)
-RoxygenNote: 7.3.1
-Imports: dplyr, tidyr, lubridate, stringr, ggplot2, readr, fs, purrr, exifr, rlang
+RoxygenNote: 7.3.2
+Imports: dplyr, tidyr, lubridate, stringr, ggplot2, readr, fs, exifr, rlang, tibble
