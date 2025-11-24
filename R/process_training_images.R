@@ -52,32 +52,127 @@ process_training_images <- function(
   output_annotation_file,
   sample_proportion = 0.5,
   filter_by,
-  min_lum = NULL,
-  max_lum = NULL,
+  min_threshold = NULL,
+  max_threshold = NULL,
   min_per_dir = 1,
   max_per_dir = Inf
 ) {
   # Load metadata
   metadata <- read_csv(metadata_file)
 
-  # Use luminosity column
+  # Use filtering column and check that it exists
   filter_by_quo <- rlang::enquo(filter_by)
   filter_by_name <- rlang::quo_name(filter_by_quo)
-  lum_values <- dplyr::pull(metadata, !!filter_by_quo)
-  if (is.null(min_lum)) {
-    min_lum <- min(lum_values, na.rm = TRUE)
-  }
-  if (is.null(max_lum)) {
-    max_lum <- max(lum_values, na.rm = TRUE)
+
+  if (!filter_by_name %in% names(metadata)) {
+    stop(
+      "Column '",
+      filter_by_name,
+      "' not found in metadata.\nAvailable columns are: ",
+      paste(names(metadata), collapse = ", "),
+      call. = FALSE
+    )
   }
 
-  # Filter daytime images
+  # Reads available values in the filtering column
+  threshold_values <- dplyr::pull(metadata, !!filter_by_quo)
 
+  if (all(is.na(threshold_values))) {
+    stop(
+      "Column '",
+      filter_by_name,
+      "' only contains NA values.",
+      call. = FALSE
+    )
+  }
+
+  # Helper function for checking the threshold values
+  col_is_numeric <- is.numeric(threshold_values)
+  col_is_date <- inherits(threshold_values, "Date")
+  col_is_posix <- inherits(threshold_values, "POSIXt")
+  col_is_char <- is.character(threshold_values)
+
+  check_threshold_type <- function(th, which_th) {
+    if (is.null(th)) {
+      return(invisible(TRUE))
+    }
+    if (col_is_numeric && !is.numeric(th)) {
+      stop(
+        which_th,
+        " must be numeric because '",
+        filter_by_name,
+        "' is numeric.",
+        call. = FALSE
+      )
+    }
+    if (col_is_date && !inherits(th, "Date")) {
+      stop(
+        which_th,
+        " must be of class 'Date' because '",
+        filter_by_name,
+        "' is a Date column.",
+        call. = FALSE
+      )
+    }
+    if (col_is_posix && !inherits(th, "POSIXt")) {
+      stop(
+        which_th,
+        " must be POSIXt (POSIXct/POSIXlt) because '",
+        filter_by_name,
+        "' is POSIXt.",
+        call. = FALSE
+      )
+    }
+    if (col_is_char && !is.character(th)) {
+      stop(
+        which_th,
+        " must be character because '",
+        filter_by_name,
+        "' is character.",
+        call. = FALSE
+      )
+    }
+    invisible(TRUE)
+  }
+
+  check_threshold_type(min_threshold, "min_threshold")
+  check_threshold_type(max_threshold, "max_threshold")
+
+  # Fill the values for threshold in case of NULL
+  if (is.null(min_threshold)) {
+    min_threshold <- min(threshold_values, na.rm = TRUE)
+  }
+  if (is.null(max_threshold)) {
+    max_threshold <- max(threshold_values, na.rm = TRUE)
+  }
+
+  # Check that min is smaller than max
+  if (any(max_threshold < min_threshold, na.rm = TRUE)) {
+    stop(
+      "`max_threshold` must be greater than or equal to `min_threshold`.",
+      call. = FALSE
+    )
+  }
+
+  # Filter images
   daytime_images <- metadata[
-    metadata[[filter_by_name]] >= min_lum &
-      metadata[[filter_by_name]] <= max_lum,
+    metadata[[filter_by_name]] >= min_threshold &
+      metadata[[filter_by_name]] <= max_threshold,
     c("Directory", "FileName", "File_date", "File_hour")
   ]
+
+  if (nrow(daytime_images) == 0) {
+    stop(
+      "No images passed the filter on '",
+      filter_by_name,
+      "' between ",
+      min_threshold,
+      " and ",
+      max_threshold,
+      ".",
+      call. = FALSE
+    )
+  }
 
   # Count total images by directory
   num_images <- daytime_images |>
@@ -111,7 +206,7 @@ process_training_images <- function(
     output_sample_file <- paste0(output_sample_file, ".csv")
   }
 
-  write_csv(
+  readr::write_csv(
     sampled_images,
     file = paste(dest_dir, output_sample_file, sep = "/")
   )
@@ -141,7 +236,7 @@ process_training_images <- function(
   if (length(grep("*.csv", output_annotation_file)) == 0) {
     output_annotation_file <- paste0(output_annotation_file, ".csv")
   }
-  write_csv(
+  readr::write_csv(
     annotation_data,
     file = paste(dest_dir, output_annotation_file, sep = "/"),
     na = ""
