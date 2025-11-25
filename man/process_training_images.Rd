@@ -10,9 +10,9 @@ process_training_images(
   output_sample_file,
   output_annotation_file,
   sample_proportion = 0.5,
-  filter_by,
-  min_lum = NULL,
-  max_lum = NULL,
+  filter_by = NULL,
+  min_threshold = NULL,
+  max_threshold = NULL,
   min_per_dir = 1,
   max_per_dir = Inf
 )
@@ -28,14 +28,16 @@ process_training_images(
 
 \item{sample_proportion}{Numeric. Proportion of images to sample (default is 0.5).}
 
-\item{filter_by}{Unquoted column name giving the luminosity variable to be used for filtering
-(e.g. \code{bLuma})}
+\item{filter_by}{Unquoted column name giving the variable to be used for filtering
+(e.g. \code{bLuma}, \code{date}, etc.). If \code{NULL}, no filtering is applied.}
 
-\item{min_lum}{Numeric. Lower luminosity threshold. Images with luminosity below this value are
-excluded. If \code{NULL}, the minimum of \code{filter_by} in the data is used.}
+\item{min_threshold}{Lower filter threshold. Images with values below this limit are
+excluded. If \code{NULL}, the minimum of \code{filter_by} in the data is used. Ignored when
+\code{filter_by = NULL}.}
 
-\item{max_lum}{Numeric. Upper luminosity threshold. Images with luminosity above this value are
-excluded. If \code{NULL}, the maximum of \code{filter_by} in the data is used.}
+\item{max_threshold}{Upper filter threshold. Images with values above this limit are
+excluded. If \code{NULL}, the maximum of \code{filter_by} in the data is used. Ignored when
+\code{filter_by = NULL}.}
 
 \item{min_per_dir}{Integer. Minimum number of images to sample per directory (default 1).}
 
