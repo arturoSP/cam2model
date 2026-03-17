@@ -1,243 +1,298 @@
-#' Process and Select Images for Training
+#' Process and Select Images for Training (multiple filters via rules list)
 #'
-#' This function filters metadata to select daytime images for training, samples a subset of images,
-#' copies the sampled images to a destination directory, and generates a CSV file for further annotation.
+#' This function filters metadata according to one or more rules (each rule
+#' applies min/max thresholds to a given column), samples a per-directory
+#' proportion of images, copies them to a destination directory, and generates
+#' CSV files for bookkeeping and annotation.
 #'
 #' @param metadata_file Character. Path to the CSV file containing metadata.
-#' @param dest_dir Character. Path to the directory where the sampled images will be copied.
-#' @param output_sample_file Character. Path to save the sampled images' metadata as a CSV file.
-#' @param output_annotation_file Character. Path to save the annotation file.
-#' @param sample_proportion Numeric. Proportion of images to sample (default is 0.5).
-#' @param filter_by Unquoted column name giving the variable to be used for filtering
-#' (e.g. `bLuma`, `date`, etc.). If `NULL`, no filtering is applied.
-#' @param min_threshold Lower filter threshold. Images with values below this limit are
-#' excluded. If `NULL`, the minimum of `filter_by` in the data is used. Ignored when
-#' `filter_by = NULL`.
-#' @param max_threshold Upper filter threshold. Images with values above this limit are
-#' excluded. If `NULL`, the maximum of `filter_by` in the data is used. Ignored when
-#' `filter_by = NULL`.
-#' @param min_per_dir Integer. Minimum number of images to sample per directory (default 1).
-#' @param max_per_dir Integer. Maximum number of images to sample per directory (default Inf).
+#'   The file must include at least the columns `Directory` and `FileName`.
+#' @param dest_dir Character. Path to the directory where the sampled images
+#'   will be copied. The directory will be created if it does not exist.
+#' @param output_sample_file Character. Base name or path (with or without
+#'   `.csv`) where the sampled images list will be saved (inside `dest_dir`).
+#' @param output_annotation_file Character. Base name or path (with or without
+#'   `.csv`) where the annotation template will be saved (inside `dest_dir`).
+#' @param sample_proportion Numeric in (0, 1]. Proportion of images to sample
+#'   within each directory (default 0.5).
+#' @param filters A list of filtering rules. Each element must be a list with
+#'   components:
+#'   \itemize{
+#'     \item \code{var}: character, name of the column to filter by.
+#'     \item \code{min}: lower threshold (same class as the column, or NULL).
+#'     \item \code{max}: upper threshold (same class as the column, or NULL).
+#'   }
+#'   If \code{filters = NULL}, no filtering is applied.
+#' @param min_per_dir Integer. Minimum number of images to sample per directory
+#'   (default 1).
+#' @param max_per_dir Integer. Maximum number of images to sample per directory
+#'   (default Inf).
 #'
-#' @return A tibble with the sampled images' metadata.
+#' @return A tibble with the sampled images' metadata (at least `Directory` and
+#'   `FileName`).
 #'
-#' @importFrom dplyr filter group_by summarise select mutate n pull group_modify
+#' @importFrom dplyr group_by summarise select mutate n group_modify slice_sample ungroup any_of
 #' @importFrom readr read_csv write_csv
 #' @importFrom fs dir_create
-#' @importFrom rlang as_name enquo
 #' @export
 #'
 #' @examples
-#' # Parameters
-#' metadata_file <- "12_26_ago_2024_images_metadata.csv"
-#' dest_dir <- "C:/train.images_ago_2024"
-#' output_sample_file <- "ago_2024_images_sampled.csv"
-#' output_annotation_file <- "images_ago_2024.csv"
+#' # Example of using two filters: brightness (bLuma) and hour (File_hour)
+#' # filters <- list(
+#' #   list(var = "bLuma",     min = 200, max = 255),
+#' #   list(var = "File_hour", min = 6,   max = 18)
+#' # )
+#' # sampled_images <- process_training_images(
+#' #   metadata_file = "12_26_ago_2024_images_metadata.csv",
+#' #   dest_dir = "C:/train.images_ago_2024",
+#' #   output_sample_file = "ago_2024_images_sampled",
+#' #   output_annotation_file = "images_ago_2024",
+#' #   sample_proportion = 0.5,
+#' #   filters = filters
+#' # )
 #'
-#' # Example call
-#' sampled_images <- process_training_images(
-#'   metadata_file = metadata_file,
-#'   dest_dir = dest_dir,
-#'   output_sample_file = output_sample_file,
-#'   output_annotation_file = output_annotation_file,
-#'   sample_proportion = 0.5,
-#'   filter_by = bLuma
-#' )
-#'
-#' print(sampled_images)
 
-#'
 process_training_images <- function(
   metadata_file,
   dest_dir,
   output_sample_file,
   output_annotation_file,
   sample_proportion = 0.5,
-  filter_by = NULL,
-  min_threshold = NULL,
-  max_threshold = NULL,
+  filters = NULL,
   min_per_dir = 1,
   max_per_dir = Inf
 ) {
-  # Load metadata
-  metadata <- read_csv(metadata_file)
+  # 1. Load metadata ----------------------------------------------------------
+  metadata <- readr::read_csv(metadata_file)
 
-  filter_by_quo <- rlang::enquo(filter_by)
-  filter_by_expr <- rlang::quo_get_expr(filter_by_quo)
-  filtering_disabled <- is.null(filter_by_expr) ||
-    identical(filter_by_expr, rlang::expr(NULL))
+  # Checks básicos
+  if (!all(c("Directory", "FileName") %in% names(metadata))) {
+    stop(
+      "The metadata file must contain at least 'Directory' and 'FileName' columns.",
+      call. = FALSE
+    )
+  }
 
-  if (!filtering_disabled) {
-    # Use filtering column and check that it exists
-    filter_by_name <- rlang::quo_name(filter_by_quo)
+  if (
+    !(is.numeric(sample_proportion) &&
+      length(sample_proportion) == 1 &&
+      is.finite(sample_proportion) &&
+      sample_proportion > 0 &&
+      sample_proportion <= 1)
+  ) {
+    stop(
+      "`sample_proportion` must be a numeric value in (0, 1].",
+      call. = FALSE
+    )
+  }
 
-    if (!filter_by_name %in% names(metadata)) {
+  # 2. Aplicar reglas de filtrado (si las hay) -------------------------------
+  filtered <- metadata
+
+  if (!is.null(filters)) {
+    if (!is.list(filters)) {
       stop(
-        "Column '",
-        filter_by_name,
-        "' not found in metadata.\nAvailable columns are: ",
-        paste(names(metadata), collapse = ", "),
+        "`filters` must be a list of rules, each rule being a list with components 'var', 'min', 'max'.",
         call. = FALSE
       )
     }
 
-    # Reads available values in the filtering column
-    threshold_values <- dplyr::pull(metadata, !!filter_by_quo)
-
-    if (all(is.na(threshold_values))) {
-      stop(
-        "Column '",
-        filter_by_name,
-        "' only contains NA values.",
-        call. = FALSE
-      )
-    }
-
-    # Helper function for checking the threshold values
-    col_is_numeric <- is.numeric(threshold_values)
-    col_is_date <- inherits(threshold_values, "Date")
-    col_is_posix <- inherits(threshold_values, "POSIXt")
-    col_is_char <- is.character(threshold_values)
-
-    check_threshold_type <- function(th, which_th) {
-      if (is.null(th)) {
-        return(invisible(TRUE))
-      }
-      if (col_is_numeric && !is.numeric(th)) {
+    # helper interno para validar e imputar thresholds por tipo
+    check_and_apply_rule <- function(df, rule) {
+      if (
+        !is.list(rule) ||
+          is.null(rule$var)
+      ) {
         stop(
-          which_th,
-          " must be numeric because '",
-          filter_by_name,
-          "' is numeric.",
+          "Each filter rule must be a list with at least component 'var'.",
           call. = FALSE
         )
       }
-      if (col_is_date && !inherits(th, "Date")) {
+
+      var_name <- rule$var
+      min_threshold <- if (!is.null(rule$min)) rule$min else NULL
+      max_threshold <- if (!is.null(rule$max)) rule$max else NULL
+
+      if (!is.character(var_name) || length(var_name) != 1) {
         stop(
-          which_th,
-          " must be of class 'Date' because '",
-          filter_by_name,
-          "' is a Date column.",
+          "In each rule, 'var' must be a single character string (column name).",
           call. = FALSE
         )
       }
-      if (col_is_posix && !inherits(th, "POSIXt")) {
+
+      if (!var_name %in% names(df)) {
         stop(
-          which_th,
-          " must be POSIXt (POSIXct/POSIXlt) because '",
-          filter_by_name,
-          "' is POSIXt.",
+          "Column '",
+          var_name,
+          "' specified in filters$var not found in metadata.",
           call. = FALSE
         )
       }
-      if (col_is_char && !is.character(th)) {
+
+      values <- df[[var_name]]
+
+      if (all(is.na(values))) {
+        stop("Column '", var_name, "' only contains NA values.", call. = FALSE)
+      }
+
+      col_is_numeric <- is.numeric(values)
+      col_is_date <- inherits(values, "Date")
+      col_is_posix <- inherits(values, "POSIXt")
+      col_is_char <- is.character(values)
+
+      # chequeo de tipo para un threshold dado
+      check_threshold_type <- function(th, which_th) {
+        if (is.null(th)) {
+          return(invisible(TRUE))
+        }
+
+        if (col_is_numeric && !is.numeric(th)) {
+          stop(
+            which_th,
+            " must be numeric because '",
+            var_name,
+            "' is numeric.",
+            call. = FALSE
+          )
+        }
+        if (col_is_date && !inherits(th, "Date")) {
+          stop(
+            which_th,
+            " must be of class 'Date' because '",
+            var_name,
+            "' is a Date column.",
+            call. = FALSE
+          )
+        }
+        if (col_is_posix && !inherits(th, "POSIXt")) {
+          stop(
+            which_th,
+            " must be POSIXt (POSIXct/POSIXlt) because '",
+            var_name,
+            "' is POSIXt.",
+            call. = FALSE
+          )
+        }
+        if (col_is_char && !is.character(th)) {
+          stop(
+            which_th,
+            " must be character because '",
+            var_name,
+            "' is character.",
+            call. = FALSE
+          )
+        }
+
+        invisible(TRUE)
+      }
+
+      check_threshold_type(min_threshold, "min_threshold")
+      check_threshold_type(max_threshold, "max_threshold")
+
+      # imputar thresholds si son NULL
+      if (is.null(min_threshold)) {
+        min_threshold <- min(values, na.rm = TRUE)
+      }
+      if (is.null(max_threshold)) {
+        max_threshold <- max(values, na.rm = TRUE)
+      }
+
+      # asegurarse de que min <= max
+      if (any(max_threshold < min_threshold, na.rm = TRUE)) {
         stop(
-          which_th,
-          " must be character because '",
-          filter_by_name,
-          "' is character.",
+          "In filter for '",
+          var_name,
+          "', `max` must be greater than or equal to `min`.",
           call. = FALSE
         )
       }
-      return(invisible(TRUE))
+
+      # aplicar filtrado
+      df_sub <- df[
+        df[[var_name]] >= min_threshold &
+          df[[var_name]] <= max_threshold,
+        ,
+        drop = FALSE
+      ]
+
+      if (nrow(df_sub) == 0) {
+        stop(
+          "No images remain after applying filter on '",
+          var_name,
+          "' between ",
+          min_threshold,
+          " and ",
+          max_threshold,
+          ".",
+          call. = FALSE
+        )
+      }
+
+      df_sub
     }
 
-    check_threshold_type(min_threshold, "min_threshold")
-    check_threshold_type(max_threshold, "max_threshold")
-
-    # Fill the values for threshold in case of NULL
-    if (is.null(min_threshold)) {
-      min_threshold <- min(threshold_values, na.rm = TRUE)
-    }
-    if (is.null(max_threshold)) {
-      max_threshold <- max(threshold_values, na.rm = TRUE)
-    }
-
-    # Check that min is smaller than max
-    if (any(max_threshold < min_threshold, na.rm = TRUE)) {
-      stop(
-        "`max_threshold` must be greater than or equal to `min_threshold`.",
-        call. = FALSE
-      )
-    }
-
-    # Filter images
-    daytime_images <- metadata[
-      metadata[[filter_by_name]] >= min_threshold &
-        metadata[[filter_by_name]] <= max_threshold,
-      c("Directory", "FileName", "File_date", "File_hour")
-    ]
-
-    if (nrow(daytime_images) == 0) {
-      stop(
-        "No images passed the filter on '",
-        filter_by_name,
-        "' between ",
-        min_threshold,
-        " and ",
-        max_threshold,
-        ".",
-        call. = FALSE
-      )
-    }
-  } else {
-    # Skip filtering and use all available images
-    daytime_images <- metadata[, c(
-      "Directory",
-      "FileName",
-      "File_date",
-      "File_hour"
-    )]
-    if (nrow(daytime_images) == 0) {
-      stop("No images available in metadata.", call. = FALSE)
+    # aplicar todas las reglas en cascada (AND)
+    for (rule in filters) {
+      filtered <- check_and_apply_rule(filtered, rule)
     }
   }
 
-  # Count total images by directory
-  num_images <- daytime_images |>
-    group_by(Directory) |>
-    summarise(images = n())
+  # 3. Subconjunto de columnas relevantes ------------------------------------
+  # (Directory, FileName y, si existen, File_date y File_hour)
+  daytime_images <- filtered |>
+    dplyr::select(
+      Directory,
+      FileName,
+      dplyr::any_of(c("File_date", "File_hour"))
+    )
 
-  # Per-directory proportional sampling
+  if (nrow(daytime_images) == 0) {
+    stop("No images available after filtering.", call. = FALSE)
+  }
+
+  # 4. Conteo de imágenes por carpeta ----------------------------------------
+  num_images <- daytime_images |>
+    dplyr::group_by(Directory) |>
+    dplyr::summarise(images = dplyr::n(), .groups = "drop")
+
+  # 5. Muestreo proporcional por carpeta -------------------------------------
   sampled_images <- daytime_images |>
     dplyr::group_by(Directory) |>
     dplyr::group_modify(\(df, key) {
       n_dir <- nrow(df)
-      # raw proportional size
       k <- floor(n_dir * sample_proportion)
-      # enforce bounds and not exceed n_dir
       k <- max(min_per_dir, k)
       k <- min(k, n_dir, max_per_dir)
-      # slice_sample handles k == n_dir
       df |>
         dplyr::slice_sample(n = k)
     }) |>
     dplyr::ungroup() |>
     dplyr::select(Directory, FileName)
 
-  # Create destination directory if it doesn't exist
+  # 6. Crear directorio destino si no existe ----------------------------------
   if (!dir.exists(dest_dir)) {
     fs::dir_create(dest_dir)
   }
 
-  # Save sampled metadata
-  if (length(grep("*.csv", output_sample_file)) == 0) {
+  # 7. Guardar lista muestreada -----------------------------------------------
+  if (!grepl("\\.csv$", output_sample_file, ignore.case = TRUE)) {
     output_sample_file <- paste0(output_sample_file, ".csv")
   }
 
   readr::write_csv(
     sampled_images,
-    file = paste(dest_dir, output_sample_file, sep = "/")
+    file = file.path(dest_dir, output_sample_file)
   )
 
-  # Ensure necessary columns are present
+  # 8. Verificar columnas necesarias -----------------------------------------
   if (!all(c("Directory", "FileName") %in% colnames(sampled_images))) {
     stop(
-      "The DataFrame 'sampled_images' must contain 'Directory' and 'FileName' columns."
+      "The DataFrame 'sampled_images' must contain 'Directory' and 'FileName' columns.",
+      call. = FALSE
     )
   }
 
-  # Copy sampled images to destination directory
+  # 9. Copiar imágenes al directorio destino ---------------------------------
   for (i in seq_len(nrow(sampled_images))) {
     source_file <- file.path(
       sampled_images$Directory[i],
@@ -247,19 +302,20 @@ process_training_images <- function(
     file.copy(source_file, dest_file, overwrite = TRUE)
   }
 
-  # Create annotation file
+  # 10. Crear base de anotación ----------------------------------------------
   annotation_data <- sampled_images |>
-    select(FileName) |>
-    mutate(Annotation = NA, fish = NA, turtle = NA)
+    dplyr::select(FileName) |>
+    dplyr::mutate(Annotation = NA, fish = NA, turtle = NA)
 
-  if (length(grep("*.csv", output_annotation_file)) == 0) {
+  if (!grepl("\\.csv$", output_annotation_file, ignore.case = TRUE)) {
     output_annotation_file <- paste0(output_annotation_file, ".csv")
   }
+
   readr::write_csv(
     annotation_data,
-    file = paste(dest_dir, output_annotation_file, sep = "/"),
+    file = file.path(dest_dir, output_annotation_file),
     na = ""
   )
 
-  return(sampled_images)
+  sampled_images
 }
