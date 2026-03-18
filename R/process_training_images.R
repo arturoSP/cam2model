@@ -1,56 +1,34 @@
-#' Process and Select Images for Training (multiple filters via rules list)
+#' Process and Select Images for Training
 #'
-#' This function filters metadata according to one or more rules (each rule
-#' applies min/max thresholds to a given column), samples a per-directory
-#' proportion of images, copies them to a destination directory, and generates
-#' CSV files for bookkeeping and annotation.
+#' This function filters metadata according to one or more rules, samples a
+#' per-directory proportion of images, copies them to a destination directory,
+#' and generates CSV files for bookkeeping and annotation.
 #'
 #' @param metadata_file Character. Path to the CSV file containing metadata.
-#'   The file must include at least the columns `Directory` and `FileName`.
-#' @param dest_dir Character. Path to the directory where the sampled images
-#'   will be copied. The directory will be created if it does not exist.
-#' @param output_sample_file Character. Base name or path (with or without
-#'   `.csv`) where the sampled images list will be saved (inside `dest_dir`).
-#' @param output_annotation_file Character. Base name or path (with or without
-#'   `.csv`) where the annotation template will be saved (inside `dest_dir`).
-#' @param sample_proportion Numeric in (0, 1]. Proportion of images to sample
-#'   within each directory (default 0.5).
-#' @param filters A list of filtering rules. Each element must be a list with
-#'   components:
+#'   The file must include at least `Directory` and `FileName`.
+#' @param dest_dir Character. Path to the directory where sampled images will be copied.
+#' @param output_sample_file Character. Name of the CSV file storing the sampled image list.
+#' @param output_annotation_file Character. Name of the CSV file storing the annotation template.
+#' @param sample_proportion Numeric in (0, 1]. Proportion of images to sample within each directory.
+#' @param filters A list of filtering rules. Each rule must be a list with:
 #'   \itemize{
-#'     \item \code{var}: character, name of the column to filter by.
-#'     \item \code{min}: lower threshold (same class as the column, or NULL).
-#'     \item \code{max}: upper threshold (same class as the column, or NULL).
+#'     \item \code{var}: character, name of the metadata column to filter by.
+#'     \item \code{min}: lower threshold (or NULL).
+#'     \item \code{max}: upper threshold (or NULL).
 #'   }
-#'   If \code{filters = NULL}, no filtering is applied.
-#' @param min_per_dir Integer. Minimum number of images to sample per directory
-#'   (default 1).
-#' @param max_per_dir Integer. Maximum number of images to sample per directory
-#'   (default Inf).
+#'   If NULL, no filtering is applied.
+#' @param min_per_dir Integer. Minimum number of images to sample per directory.
+#' @param max_per_dir Integer. Maximum number of images to sample per directory.
+#' @param parallel Logical. If TRUE, file copying is done in parallel.
+#' @param workers Integer or NULL. Number of workers for parallel copying.
+#' @param show_progress Logical. If TRUE, show a progress bar using `progressr`.
 #'
-#' @return A tibble with the sampled images' metadata (at least `Directory` and
-#'   `FileName`).
-#'
+#' @return A tibble with the sampled images (`Directory`, `FileName`).
 #' @importFrom dplyr group_by summarise select mutate n group_modify slice_sample ungroup any_of
 #' @importFrom readr read_csv write_csv
 #' @importFrom fs dir_create
+#' @importFrom progressr with_progress progressor
 #' @export
-#'
-#' @examples
-#' # Example of using two filters: brightness (bLuma) and hour (File_hour)
-#' # filters <- list(
-#' #   list(var = "bLuma",     min = 200, max = 255),
-#' #   list(var = "File_hour", min = 6,   max = 18)
-#' # )
-#' # sampled_images <- process_training_images(
-#' #   metadata_file = "12_26_ago_2024_images_metadata.csv",
-#' #   dest_dir = "C:/train.images_ago_2024",
-#' #   output_sample_file = "ago_2024_images_sampled",
-#' #   output_annotation_file = "images_ago_2024",
-#' #   sample_proportion = 0.5,
-#' #   filters = filters
-#' # )
-#'
 
 process_training_images <- function(
   metadata_file,
@@ -60,12 +38,15 @@ process_training_images <- function(
   sample_proportion = 0.5,
   filters = NULL,
   min_per_dir = 1,
-  max_per_dir = Inf
+  max_per_dir = Inf,
+  copy_images = FALSE,
+  parallel = FALSE,
+  workers = NULL,
+  show_progress = TRUE
 ) {
   # 1. Load metadata ----------------------------------------------------------
   metadata <- readr::read_csv(metadata_file)
 
-  # Checks básicos
   if (!all(c("Directory", "FileName") %in% names(metadata))) {
     stop(
       "The metadata file must contain at least 'Directory' and 'FileName' columns.",
@@ -86,23 +67,19 @@ process_training_images <- function(
     )
   }
 
-  # 2. Aplicar reglas de filtrado (si las hay) -------------------------------
+  # 2. Apply filtering rules --------------------------------------------------
   filtered <- metadata
 
   if (!is.null(filters)) {
     if (!is.list(filters)) {
       stop(
-        "`filters` must be a list of rules, each rule being a list with components 'var', 'min', 'max'.",
+        "`filters` must be a list of rules, each rule being a list with components 'var', 'min', and 'max'.",
         call. = FALSE
       )
     }
 
-    # helper interno para validar e imputar thresholds por tipo
     check_and_apply_rule <- function(df, rule) {
-      if (
-        !is.list(rule) ||
-          is.null(rule$var)
-      ) {
+      if (!is.list(rule) || is.null(rule$var)) {
         stop(
           "Each filter rule must be a list with at least component 'var'.",
           call. = FALSE
@@ -115,7 +92,7 @@ process_training_images <- function(
 
       if (!is.character(var_name) || length(var_name) != 1) {
         stop(
-          "In each rule, 'var' must be a single character string (column name).",
+          "In each rule, 'var' must be a single character string.",
           call. = FALSE
         )
       }
@@ -124,7 +101,7 @@ process_training_images <- function(
         stop(
           "Column '",
           var_name,
-          "' specified in filters$var not found in metadata.",
+          "' specified in filters was not found in metadata.",
           call. = FALSE
         )
       }
@@ -140,7 +117,6 @@ process_training_images <- function(
       col_is_posix <- inherits(values, "POSIXt")
       col_is_char <- is.character(values)
 
-      # chequeo de tipo para un threshold dado
       check_threshold_type <- function(th, which_th) {
         if (is.null(th)) {
           return(invisible(TRUE))
@@ -167,7 +143,7 @@ process_training_images <- function(
         if (col_is_posix && !inherits(th, "POSIXt")) {
           stop(
             which_th,
-            " must be POSIXt (POSIXct/POSIXlt) because '",
+            " must be POSIXt because '",
             var_name,
             "' is POSIXt.",
             call. = FALSE
@@ -186,10 +162,9 @@ process_training_images <- function(
         invisible(TRUE)
       }
 
-      check_threshold_type(min_threshold, "min_threshold")
-      check_threshold_type(max_threshold, "max_threshold")
+      check_threshold_type(min_threshold, "min")
+      check_threshold_type(max_threshold, "max")
 
-      # imputar thresholds si son NULL
       if (is.null(min_threshold)) {
         min_threshold <- min(values, na.rm = TRUE)
       }
@@ -197,7 +172,6 @@ process_training_images <- function(
         max_threshold <- max(values, na.rm = TRUE)
       }
 
-      # asegurarse de que min <= max
       if (any(max_threshold < min_threshold, na.rm = TRUE)) {
         stop(
           "In filter for '",
@@ -207,7 +181,6 @@ process_training_images <- function(
         )
       }
 
-      # aplicar filtrado
       df_sub <- df[
         df[[var_name]] >= min_threshold &
           df[[var_name]] <= max_threshold,
@@ -231,50 +204,46 @@ process_training_images <- function(
       df_sub
     }
 
-    # aplicar todas las reglas en cascada (AND)
     for (rule in filters) {
       filtered <- check_and_apply_rule(filtered, rule)
     }
   }
 
-  # 3. Subconjunto de columnas relevantes ------------------------------------
-  # (Directory, FileName y, si existen, File_date y File_hour)
-  daytime_images <- filtered |>
+  # 3. Keep relevant columns --------------------------------------------------
+  training_images <- filtered |>
     dplyr::select(
       Directory,
       FileName,
       dplyr::any_of(c("File_date", "File_hour"))
     )
 
-  if (nrow(daytime_images) == 0) {
+  if (nrow(training_images) == 0) {
     stop("No images available after filtering.", call. = FALSE)
   }
 
-  # 4. Conteo de imágenes por carpeta ----------------------------------------
-  num_images <- daytime_images |>
-    dplyr::group_by(Directory) |>
-    dplyr::summarise(images = dplyr::n(), .groups = "drop")
-
-  # 5. Muestreo proporcional por carpeta -------------------------------------
-  sampled_images <- daytime_images |>
+  # 4. Sample proportionally within each directory ----------------------------
+  sampled_images <- training_images |>
     dplyr::group_by(Directory) |>
     dplyr::group_modify(\(df, key) {
       n_dir <- nrow(df)
       k <- floor(n_dir * sample_proportion)
       k <- max(min_per_dir, k)
       k <- min(k, n_dir, max_per_dir)
+
       df |>
         dplyr::slice_sample(n = k)
     }) |>
     dplyr::ungroup() |>
-    dplyr::select(Directory, FileName)
+    dplyr::mutate(
+      file_path = file.path(Directory, FileName)
+    )
 
-  # 6. Crear directorio destino si no existe ----------------------------------
+  # 5. Create destination directory -------------------------------------------
   if (!dir.exists(dest_dir)) {
     fs::dir_create(dest_dir)
   }
 
-  # 7. Guardar lista muestreada -----------------------------------------------
+  # 6. Save sampled metadata with original paths ------------------------------
   if (!grepl("\\.csv$", output_sample_file, ignore.case = TRUE)) {
     output_sample_file <- paste0(output_sample_file, ".csv")
   }
@@ -284,28 +253,118 @@ process_training_images <- function(
     file = file.path(dest_dir, output_sample_file)
   )
 
-  # 8. Verificar columnas necesarias -----------------------------------------
-  if (!all(c("Directory", "FileName") %in% colnames(sampled_images))) {
-    stop(
-      "The DataFrame 'sampled_images' must contain 'Directory' and 'FileName' columns.",
-      call. = FALSE
-    )
+  # 7. Optional image copying -------------------------------------------------
+  if (copy_images) {
+    sampled_images <- sampled_images |>
+      dplyr::mutate(
+        dest_file = file.path(dest_dir, FileName)
+      )
+
+    copy_one_file <- function(source_file, dest_file) {
+      file.copy(source_file, dest_file, overwrite = TRUE)
+    }
+
+    if (!parallel) {
+      if (show_progress) {
+        progressr::with_progress({
+          p <- progressr::progressor(steps = nrow(sampled_images))
+
+          copied <- vapply(
+            seq_len(nrow(sampled_images)),
+            function(i) {
+              res <- copy_one_file(
+                source_file = sampled_images$file_path[i],
+                dest_file = sampled_images$dest_file[i]
+              )
+              p(message = basename(sampled_images$FileName[i]))
+              res
+            },
+            logical(1)
+          )
+        })
+      } else {
+        copied <- vapply(
+          seq_len(nrow(sampled_images)),
+          function(i) {
+            copy_one_file(
+              source_file = sampled_images$file_path[i],
+              dest_file = sampled_images$dest_file[i]
+            )
+          },
+          logical(1)
+        )
+      }
+    } else {
+      if (!requireNamespace("future", quietly = TRUE)) {
+        stop(
+          "Package 'future' is required when `parallel = TRUE`.",
+          call. = FALSE
+        )
+      }
+      if (!requireNamespace("future.apply", quietly = TRUE)) {
+        stop(
+          "Package 'future.apply' is required when `parallel = TRUE`.",
+          call. = FALSE
+        )
+      }
+
+      old_plan <- future::plan()
+      on.exit(future::plan(old_plan), add = TRUE)
+
+      if (is.null(workers)) {
+        workers <- max(1, future::availableCores() - 1)
+      }
+
+      future::plan(future::multisession, workers = workers)
+
+      if (show_progress) {
+        progressr::with_progress({
+          p <- progressr::progressor(steps = nrow(sampled_images))
+
+          copied <- unlist(
+            future.apply::future_lapply(
+              seq_len(nrow(sampled_images)),
+              function(i) {
+                res <- file.copy(
+                  from = sampled_images$file_path[i],
+                  to = sampled_images$dest_file[i],
+                  overwrite = TRUE
+                )
+                p(message = basename(sampled_images$FileName[i]))
+                res
+              },
+              future.seed = TRUE
+            )
+          )
+        })
+      } else {
+        copied <- unlist(
+          future.apply::future_lapply(
+            seq_len(nrow(sampled_images)),
+            function(i) {
+              file.copy(
+                from = sampled_images$file_path[i],
+                to = sampled_images$dest_file[i],
+                overwrite = TRUE
+              )
+            },
+            future.seed = TRUE
+          )
+        )
+      }
+    }
+
+    sampled_images$copied <- copied
   }
 
-  # 9. Copiar imágenes al directorio destino ---------------------------------
-  for (i in seq_len(nrow(sampled_images))) {
-    source_file <- file.path(
-      sampled_images$Directory[i],
-      sampled_images$FileName[i]
-    )
-    dest_file <- file.path(dest_dir, sampled_images$FileName[i])
-    file.copy(source_file, dest_file, overwrite = TRUE)
-  }
-
-  # 10. Crear base de anotación ----------------------------------------------
+  # 8. Create annotation file -------------------------------------------------
   annotation_data <- sampled_images |>
-    dplyr::select(FileName) |>
-    dplyr::mutate(Annotation = NA, fish = NA, turtle = NA)
+    dplyr::select(FileName, file_path) |>
+    dplyr::mutate(
+      Annotation = NA,
+      fish = NA,
+      turtle = NA
+    )
 
   if (!grepl("\\.csv$", output_annotation_file, ignore.case = TRUE)) {
     output_annotation_file <- paste0(output_annotation_file, ".csv")
