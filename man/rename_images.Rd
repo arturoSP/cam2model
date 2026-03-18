@@ -2,30 +2,55 @@
 % Please edit documentation in R/rename_images.R
 \name{rename_images}
 \alias{rename_images}
-\title{Rename Images Based on EXIF Data}
+\title{Rename and flatten camera trap images}
 \usage{
-rename_images(main_dir, output_dir)
+rename_images(
+  input_dir,
+  output_dir,
+  site_name = NULL,
+  recursive = TRUE,
+  extensions = c("jpg", "jpeg", "png", "tif", "tiff"),
+  keep_relative_path = TRUE,
+  date_fields = c("DateTimeOriginal", "FileModifyDate"),
+  parallel = FALSE,
+  workers = NULL,
+  overwrite = FALSE,
+  return_plan = FALSE
+)
 }
 \arguments{
-\item{main_dir}{Character. Path to the main directory containing camera folders.}
+\item{input_dir}{Character. Path to the root directory of a sampling site.}
 
-\item{output_dir}{Character. Path to the directory where renamed images will be stored.}
+\item{output_dir}{Character. Path to the root output directory.}
+
+\item{site_name}{Character or NULL. Name of the sampling site. If \code{NULL},
+the basename of \code{input_dir} is used.}
+
+\item{recursive}{Logical. Should files be searched recursively? Default \code{TRUE}.}
+
+\item{extensions}{Character vector. Allowed image extensions.}
+
+\item{keep_relative_path}{Logical. If \code{TRUE}, part of the relative path is
+included in the new file name.}
+
+\item{date_fields}{Character vector. EXIF date fields to try in order.}
+
+\item{parallel}{Logical. Should the renaming plan be built in parallel?
+Default \code{FALSE}.}
+
+\item{workers}{Integer or NULL. Number of workers when \code{parallel = TRUE}.}
+
+\item{overwrite}{Logical. Should existing files be overwritten? Default \code{FALSE}.}
+
+\item{return_plan}{Logical. If \code{TRUE}, returns a list with both \code{plan} and
+\code{result}. If \code{FALSE}, returns only the executed plan with copy status.}
 }
 \value{
-A tibble summarizing the renamed files and their paths.
+A tibble with copy results, or a list containing both the plan and
+the execution result.
 }
 \description{
-This function processes images stored in subdirectories, extracts EXIF metadata,
-and renames them based on their file modification date, camera folder name, and subfolder.
-}
-\examples{
-# Define input and output paths
-main_dir <- "~/Descargas/DSCF0099"
-output_dir <- "~/Descargas/test1"
-
-# Run the function
-renamed_files <- rename_images(main_dir, output_dir)
-
-print(renamed_files)
-
+This wrapper function builds a renaming plan and immediately executes it,
+allowing the user to flatten and rename all images from a sampling-site
+directory in a single call.
 }

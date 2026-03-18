@@ -21,6 +21,7 @@
 #' @return A tibble with the renaming plan.
 #' @importFrom tibble tibble
 #' @importFrom dplyr bind_rows
+#' @importFrom progressr with_progress progressor
 #' @keywords internal
 
 build_rename_plan <- function(
@@ -154,15 +155,25 @@ build_rename_plan <- function(
   }
 
   if (!parallel) {
-    plan_list <- lapply(
-      image_files,
-      process_one_image,
-      input_dir = input_dir,
-      site_output_dir = site_output_dir,
-      site_name = site_name,
-      keep_relative_path = keep_relative_path,
-      date_fields = date_fields
-    )
+    progressr::with_progress({
+      p <- progressr::progressor(steps = length(image_files))
+
+      plan_list <- lapply(
+        image_files,
+        function(img) {
+          res <- process_one_image(
+            img,
+            input_dir = input_dir,
+            site_output_dir = site_output_dir,
+            site_name = site_name,
+            keep_relative_path = keep_relative_path,
+            date_fields = date_fields
+          )
+          p()
+          res
+        }
+      )
+    })
   } else {
     if (!requireNamespace("future", quietly = TRUE)) {
       stop(
@@ -186,16 +197,26 @@ build_rename_plan <- function(
 
     future::plan(future::multisession, workers = workers)
 
-    plan_list <- future.apply::future_lapply(
-      image_files,
-      process_one_image,
-      input_dir = input_dir,
-      site_output_dir = site_output_dir,
-      site_name = site_name,
-      keep_relative_path = keep_relative_path,
-      date_fields = date_fields,
-      future.seed = TRUE
-    )
+    progressr::with_progress({
+      p <- progressr::progressor(steps = length(image_files))
+
+      plan_list <- future.apply::future_lapply(
+        image_files,
+        function(img) {
+          res <- process_one_image(
+            img,
+            input_dir = input_dir,
+            site_output_dir = site_output_dir,
+            site_name = site_name,
+            keep_relative_path = keep_relative_path,
+            date_fields = date_fields
+          )
+          p()
+          res
+        },
+        future.seed = TRUE
+      )
+    })
   }
 
   plan_tbl <- dplyr::bind_rows(plan_list)
@@ -235,6 +256,7 @@ build_rename_plan <- function(
 #' @param overwrite Logical. Should existing files be overwritten? Default `FALSE`.
 #'
 #' @return The input tibble with an added logical column `copied`.
+#' @importFrom progressr with_progress progressor
 #' @keywords internal
 
 execute_rename_plan <- function(plan_tbl, overwrite = FALSE) {
@@ -249,19 +271,25 @@ execute_rename_plan <- function(plan_tbl, overwrite = FALSE) {
 
   copied <- logical(nrow(plan_tbl))
 
-  for (i in seq_len(nrow(plan_tbl))) {
-    dest_dir_i <- dirname(plan_tbl$new_path[i])
+  progressr::with_progress({
+    p <- progressr::progressor(steps = nrow(plan_tbl))
 
-    if (!dir.exists(dest_dir_i)) {
-      dir.create(dest_dir_i, recursive = TRUE)
+    for (i in seq_len(nrow(plan_tbl))) {
+      dest_dir_i <- dirname(plan_tbl$new_path[i])
+
+      if (!dir.exists(dest_dir_i)) {
+        dir.create(dest_dir_i, recursive = TRUE)
+      }
+
+      copied[i] <- file.copy(
+        from = plan_tbl$original_path[i],
+        to = plan_tbl$new_path[i],
+        overwrite = overwrite
+      )
+
+      p()
     }
-
-    copied[i] <- file.copy(
-      from = plan_tbl$original_path[i],
-      to = plan_tbl$new_path[i],
-      overwrite = overwrite
-    )
-  }
+  })
 
   plan_tbl$copied <- copied
   plan_tbl

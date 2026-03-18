@@ -21,5 +21,6 @@ Description: The `cam2model` package provides tools for preprocessing camera tra
 License: GPL (>= 3)
 Encoding: UTF-8
 Roxygen: list(markdown = TRUE)
-RoxygenNote: 7.3.2
-Imports: dplyr, tidyr, lubridate, stringr, ggplot2, readr, fs, exifr, rlang, tibble
+RoxygenNote: 7.3.3
+Imports: dplyr, tidyr, lubridate, stringr, ggplot2, readr, fs, exifr, rlang, tibble, progressr
+Suggests: future, future.apply 
