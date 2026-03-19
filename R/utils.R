@@ -47,13 +47,16 @@ build_rename_plan <- function(
     dir.create(output_dir, recursive = TRUE)
   }
 
+  # carpeta específica de salida para el sitio
   site_output_dir <- file.path(output_dir, site_name)
   if (!dir.exists(site_output_dir)) {
     dir.create(site_output_dir, recursive = TRUE)
   }
 
+  # patrón de extensiones
   ext_pattern <- paste0("\\.(", paste(extensions, collapse = "|"), ")$")
 
+  # listar imágenes en cualquier profundidad
   image_files <- list.files(
     path = input_dir,
     pattern = ext_pattern,
@@ -88,15 +91,20 @@ build_rename_plan <- function(
     )
 
     rel_parts <- strsplit(rel_path, "/", fixed = TRUE)[[1]]
+
+    # inferencia simple: la primera subcarpeta es la cámara
     camera_name <- if (length(rel_parts) > 1) rel_parts[1] else "unknown_camera"
 
+    # nombre original
     image_name <- basename(image)
 
+    # leer EXIF con seguridad
     exif_data <- tryCatch(
       exifr::read_exif(image),
       error = function(e) NULL
     )
 
+    # extraer fecha
     date_taken <- "unknown_date"
     date_field_used <- NA_character_
 
@@ -115,6 +123,7 @@ build_rename_plan <- function(
       date_taken <- gsub(" ", "_", date_taken)
     }
 
+    # recuperar subruta sin nombre de archivo
     rel_dir <- dirname(rel_path)
     rel_dir <- if (identical(rel_dir, ".")) "" else rel_dir
 
@@ -140,8 +149,10 @@ build_rename_plan <- function(
       )
     }
 
+    # limpieza final del nombre
     new_name <- gsub("__+", "_", new_name)
-    new_path <- file.path(site_output_dir, new_name)
+    camera_output_dir <- file.path(site_output_dir, camera_name)
+    new_path <- file.path(camera_output_dir, new_name)
 
     tibble::tibble(
       original_path = image,
