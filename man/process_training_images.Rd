@@ -2,7 +2,7 @@
 % Please edit documentation in R/process_training_images.R
 \name{process_training_images}
 \alias{process_training_images}
-\title{Process and Select Images for Training (multiple filters via rules list)}
+\title{Process and Select Images for Training}
 \usage{
 process_training_images(
   metadata_file,
@@ -12,63 +12,48 @@ process_training_images(
   sample_proportion = 0.5,
   filters = NULL,
   min_per_dir = 1,
-  max_per_dir = Inf
+  max_per_dir = Inf,
+  copy_images = FALSE,
+  parallel = FALSE,
+  workers = NULL,
+  show_progress = TRUE
 )
 }
 \arguments{
 \item{metadata_file}{Character. Path to the CSV file containing metadata.
-The file must include at least the columns \code{Directory} and \code{FileName}.}
+The file must include at least \code{Directory} and \code{FileName}.}
 
-\item{dest_dir}{Character. Path to the directory where the sampled images
-will be copied. The directory will be created if it does not exist.}
+\item{dest_dir}{Character. Path to the directory where sampled images will be copied.}
 
-\item{output_sample_file}{Character. Base name or path (with or without
-\code{.csv}) where the sampled images list will be saved (inside \code{dest_dir}).}
+\item{output_sample_file}{Character. Name of the CSV file storing the sampled image list.}
 
-\item{output_annotation_file}{Character. Base name or path (with or without
-\code{.csv}) where the annotation template will be saved (inside \code{dest_dir}).}
+\item{output_annotation_file}{Character. Name of the CSV file storing the annotation template.}
 
-\item{sample_proportion}{Numeric in (0, 1]. Proportion of images to sample
-within each directory (default 0.5).}
+\item{sample_proportion}{Numeric in (0, 1]. Proportion of images to sample within each directory.}
 
-\item{filters}{A list of filtering rules. Each element must be a list with
-components:
+\item{filters}{A list of filtering rules. Each rule must be a list with:
 \itemize{
-\item \code{var}: character, name of the column to filter by.
-\item \code{min}: lower threshold (same class as the column, or NULL).
-\item \code{max}: upper threshold (same class as the column, or NULL).
+\item \code{var}: character, name of the metadata column to filter by.
+\item \code{min}: lower threshold (or NULL).
+\item \code{max}: upper threshold (or NULL).
 }
-If \code{filters = NULL}, no filtering is applied.}
+If NULL, no filtering is applied.}
 
-\item{min_per_dir}{Integer. Minimum number of images to sample per directory
-(default 1).}
+\item{min_per_dir}{Integer. Minimum number of images to sample per directory.}
 
-\item{max_per_dir}{Integer. Maximum number of images to sample per directory
-(default Inf).}
+\item{max_per_dir}{Integer. Maximum number of images to sample per directory.}
+
+\item{parallel}{Logical. If TRUE, file copying is done in parallel.}
+
+\item{workers}{Integer or NULL. Number of workers for parallel copying.}
+
+\item{show_progress}{Logical. If TRUE, show a progress bar using \code{progressr}.}
 }
 \value{
-A tibble with the sampled images' metadata (at least \code{Directory} and
-\code{FileName}).
+A tibble with the sampled images (\code{Directory}, \code{FileName}).
 }
 \description{
-This function filters metadata according to one or more rules (each rule
-applies min/max thresholds to a given column), samples a per-directory
-proportion of images, copies them to a destination directory, and generates
-CSV files for bookkeeping and annotation.
-}
-\examples{
-# Example of using two filters: brightness (bLuma) and hour (File_hour)
-# filters <- list(
-#   list(var = "bLuma",     min = 200, max = 255),
-#   list(var = "File_hour", min = 6,   max = 18)
-# )
-# sampled_images <- process_training_images(
-#   metadata_file = "12_26_ago_2024_images_metadata.csv",
-#   dest_dir = "C:/train.images_ago_2024",
-#   output_sample_file = "ago_2024_images_sampled",
-#   output_annotation_file = "images_ago_2024",
-#   sample_proportion = 0.5,
-#   filters = filters
-# )
-
+This function filters metadata according to one or more rules, samples a
+per-directory proportion of images, copies them to a destination directory,
+and generates CSV files for bookkeeping and annotation.
 }

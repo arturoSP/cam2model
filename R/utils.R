@@ -23,6 +23,7 @@
 #' @importFrom dplyr bind_rows
 #' @importFrom progressr with_progress progressor
 #' @keywords internal
+#' @noRd
 
 build_rename_plan <- function(
   input_dir,
@@ -269,6 +270,7 @@ build_rename_plan <- function(
 #' @return The input tibble with an added logical column `copied`.
 #' @importFrom progressr with_progress progressor
 #' @keywords internal
+#' @noRd
 
 execute_rename_plan <- function(plan_tbl, overwrite = FALSE) {
   required_cols <- c("original_path", "new_name", "new_path")
@@ -304,4 +306,46 @@ execute_rename_plan <- function(plan_tbl, overwrite = FALSE) {
 
   plan_tbl$copied <- copied
   plan_tbl
+}
+
+#' Build unique destination file names for a batch
+#'
+#' Internal helper used by copy_in_batches() to create
+#' destination names, optionally prefixing them with an identifier.
+#'
+#' @param ids Character vector of identifiers.
+#' @param paths Character vector of source file paths.
+#' @param rename_with_id Logical; if `TRUE`, prefixes each output file
+#'   name with the corresponding `id`.
+#'
+#' @return A character vector of unique file names.
+#'
+#' @keywords internal
+#' @noRd
+.build_destination_names_fs <- function(ids, paths, rename_with_id = TRUE) {
+  original_names <- fs::path_file(paths)
+
+  if (rename_with_id) {
+    has_ext <- grepl("\\.", original_names)
+
+    base_name <- ifelse(
+      has_ext,
+      sub("\\.[^.]+$", "", original_names),
+      original_names
+    )
+
+    ext <- ifelse(
+      has_ext,
+      sub("^.*(\\.[^.]+)$", "\\1", original_names),
+      ""
+    )
+
+    ids_clean <- gsub("[^[:alnum:]_-]", "_", as.character(ids))
+
+    new_names <- paste0(ids_clean, "_", base_name, ext)
+  } else {
+    new_names <- original_names
+  }
+
+  make.unique(new_names, sep = "_dup_")
 }
