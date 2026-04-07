@@ -124,7 +124,7 @@ destination folder, and creates an annotation database.
 #### Step 1: Rename images
 
 ```{r, eval=FALSE}
-rename_images(main_dir = "C:/raw_images", output_dir = "C:/renamed_images")
+rename_images(input_dir = "C:/raw_images", output_dir = "C:/renamed_images")
 ```
 
 #### Step 2: Extract and process metadata
