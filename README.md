@@ -33,7 +33,7 @@ structured directories.
 
 #### Parameters
 
-- main_dir: Main directory where the original images are stored.
+- input_dir: Main directory where the original images are stored.
 
 - output_dir: Directory where the renamed images will be saved.
 
