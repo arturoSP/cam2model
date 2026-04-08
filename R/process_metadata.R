@@ -5,6 +5,8 @@
 #'
 #' @param output_dir Character. Path to the main directory containing camera folders with renamed images.
 #' @param output_file Character. Path to the output CSV file where metadata will be saved.
+#' @param output_file Character. Experimental. When set to TRUE, it will read and try to parse the info
+#' within the UserComment field. If you run it and the function fails, try with FALSE.
 #' @return A tibble with the processed metadata.
 #' @importFrom exifr read_exif
 #' @importFrom dplyr bind_rows mutate select left_join relocate

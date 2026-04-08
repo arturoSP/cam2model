@@ -9,7 +9,8 @@ process_metadata(output_dir, output_file)
 \arguments{
 \item{output_dir}{Character. Path to the main directory containing camera folders with renamed images.}
 
-\item{output_file}{Character. Path to the output CSV file where metadata will be saved.}
+\item{output_file}{Character. Experimental. When set to TRUE, it will read and try to parse the info
+within the UserComment field. If you run it and the function fails, try with FALSE.}
 }
 \value{
 A tibble with the processed metadata.
