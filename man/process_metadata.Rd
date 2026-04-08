@@ -24,7 +24,7 @@ output_dir <- "~/Descargas/test1"
 output_file <- "12_ago_2024_metadata.csv"
 
 # Run the function
-metadata <- process_metadata(output_dir, output_file)
+metadata <- process_metadata(output_dir, output_file, UserComment = FALSE)
 
 print(metadata)
 
