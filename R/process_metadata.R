@@ -26,7 +26,7 @@
 #' print(metadata)
 #'
 
-process_metadata <- function(output_dir, output_file) {
+process_metadata <- function(output_dir, output_file, UserComment = FALSE) {
   # Validations
   if (!dir.exists(output_dir)) {
     stop("The main directory does not exist: ", output_dir)

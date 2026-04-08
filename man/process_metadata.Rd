@@ -4,7 +4,7 @@
 \alias{process_metadata}
 \title{Process Camera Trap Metadata}
 \usage{
-process_metadata(output_dir, output_file)
+process_metadata(output_dir, output_file, UserComment = FALSE)
 }
 \arguments{
 \item{output_dir}{Character. Path to the main directory containing camera folders with renamed images.}
