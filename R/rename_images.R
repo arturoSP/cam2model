@@ -20,8 +20,42 @@
 #' @param return_plan Logical. If `TRUE`, returns a list with both `plan` and
 #'   `result`. If `FALSE`, returns only the executed plan with copy status.
 #'
+#' @details
+#' **Expected minimum input columns (internal contract):** none. The function
+#' reads image files directly from `input_dir` and builds metadata internally.
+#'
+#' **Produced columns:**
+#' - If `return_plan = FALSE`, returns the execution table with columns from the
+#'   renaming plan plus `copied`.
+#' - If `return_plan = TRUE`, returns a list with:
+#'   - `plan`: planning table that includes `original_path`, `new_name`, and
+#'     `new_path`.
+#'   - `result`: the same rows plus `copied`.
+#'
+#' **I/O side-effects:** creates `<output_dir>/<site_name>` when needed and
+#' copies files to that folder using standardized names.
+#'
 #' @return A tibble with copy results, or a list containing both the plan and
 #'   the execution result.
+#' @seealso [process_metadata()], [generate_plot()], [process_training_images()],
+#'   [copy_in_batches()]
+#' @examples
+#' \dontrun{
+#' # Requires real image files on disk.
+#' raw_dir <- tempfile("cam2model_raw_")
+#' out_dir <- tempfile("cam2model_out_")
+#' dir.create(raw_dir, recursive = TRUE)
+#' dir.create(out_dir, recursive = TRUE)
+#'
+#' # Copy real camera-trap images into `raw_dir` before running.
+#' result <- rename_images(
+#'   input_dir = raw_dir,
+#'   output_dir = out_dir,
+#'   site_name = "site_demo",
+#'   overwrite = FALSE
+#' )
+#' head(result)
+#' }
 #' @export
 
 rename_images <- function(

@@ -7,29 +7,60 @@
 process_metadata(output_dir, output_file, UserComment = FALSE)
 }
 \arguments{
-\item{output_dir}{Character. Path to the main directory containing camera folders with renamed images.}
+\item{output_dir}{Character. Path to the main directory containing camera
+folders with renamed images.}
 
-\item{output_file}{Character. Relative file path (from \code{output_dir}) for the output CSV where metadata will be saved.
-The parent directory for this file must already exist inside \code{output_dir}.}
+\item{output_file}{Character. Relative file path (from \code{output_dir}) for the
+output CSV where metadata will be saved. The parent directory for this file
+must already exist inside \code{output_dir}.}
 
-\item{UserComment}{Logical. Default \code{FALSE}. When \code{TRUE}, attempts to parse and expand the EXIF
-\code{UserComment} field into additional metadata columns. Set to \code{FALSE} if parsing fails for your files.}
+\item{UserComment}{Logical. Default \code{FALSE}. When \code{TRUE}, attempts to parse
+and expand the EXIF \code{UserComment} field into additional metadata columns.
+Set to \code{FALSE} if parsing fails for your files.}
 }
 \value{
-A tibble with the processed metadata.
+A tibble with processed metadata. Typical contract columns used by
+downstream functions include \code{Directory} and \code{FileName} (required by
+\code{\link[=process_training_images]{process_training_images()}}).
 }
 \description{
-Extracts EXIF metadata from images in a directory, processes the 'UserComment' column,
-and saves the resulting metadata to a CSV file.
+Extracts EXIF metadata from images in a directory, processes the
+\code{UserComment} column, and saves the resulting metadata to a CSV file.
+}
+\details{
+\strong{Expected minimum input columns (internal contract):} none. This function
+reads EXIF tags directly from image files under \code{output_dir} and appends a
+\code{Camera} column derived from each first-level folder name.
+
+\strong{Produced columns:} varies by EXIF availability. Output always includes
+available EXIF fields plus \code{Camera}; when \code{UserComment = TRUE} and parsing is
+successful, it may also include \code{Image_dttm}, \code{File_date}, \code{File_hms},
+\code{File_hour}, \code{File_minute}, and parsed fields such as \code{temp}/\code{bLuma}.
+
+\strong{I/O side-effects:} writes one CSV to \code{file.path(output_dir, output_file)}.
+The function does not create missing parent directories for \code{output_file}.
+}
+\seealso{
+\code{\link[=rename_images]{rename_images()}},
+\code{\link[=generate_plot]{generate_plot()}},
+\code{\link[=process_training_images]{process_training_images()}},
+\code{\link[=copy_in_batches]{copy_in_batches()}}
 }
 \examples{
-# Define paths
-output_dir <- "~/Descargas/test1"
-output_file <- "12_ago_2024_metadata.csv"
+\dontrun{
+# Requires real image files with EXIF metadata.
+renamed_dir <- tempfile("cam2model_renamed_")
+dir.create(renamed_dir, recursive = TRUE)
+dir.create(file.path(renamed_dir, "camera_A"), recursive = TRUE)
 
-# Run the function
-metadata <- process_metadata(output_dir, output_file, UserComment = FALSE)
+# Copy real camera-trap images into `renamed_dir/camera_A` before running.
+meta <- process_metadata(
+  output_dir = renamed_dir,
+  output_file = "metadata.csv",
+  UserComment = FALSE
+)
 
-print(metadata)
-
+file.exists(file.path(renamed_dir, "metadata.csv"))
+head(meta)
+}
 }

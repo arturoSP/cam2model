@@ -1,39 +1,50 @@
 #' Generate Custom Plots from Metadata
 #'
-#' This function generates ggplot visualizations for the provided metadata,
-#' allowing dynamic specification of axes, color, and additional filtering.
+#' Generates `ggplot2` visualizations for processed camera-trap metadata,
+#' with flexible x/y mappings, optional color/faceting, and optional filtering.
 #'
-#' @param processed_metadata A data frame containing the processed_metadata.
-#' @param x Character. The column name to use for the x-axis.
-#' @param y Character. The column name to use for the y-axis.
-#' @param color Character. (Optional) The column name to use for coloring the points/lines.
-#' @param facets Character. (Optional) The column name for facet wrapping.
-#' @param filter_expr Expression. (Optional) An expression to filter the metadata.
-#' @param angle Numeric. (Optional) Angle for x-axis text. Default is 0.
-#' @return A ggplot object.
+#' @param processed_metadata A data frame containing processed metadata.
+#' @param x Bare column name to use for the x-axis.
+#' @param y Bare column name to use for the y-axis.
+#' @param color Bare column name (optional) to map to point/line color.
+#' @param facets Bare column name (optional) used in `facet_wrap()`.
+#' @param filter_expr Expression (optional) used to filter the metadata before
+#'   plotting.
+#' @param angle Numeric. Angle for x-axis labels. Default is `0`.
+#'
+#' @details
+#' **Expected minimum input columns (contract):** the columns referenced in
+#' `x` and `y`, and optionally those used in `color`, `facets`, and
+#' `filter_expr`.
+#'
+#' **Produced columns/artifacts:** none (no data is modified on disk). The
+#' function returns a `ggplot` object combining `geom_line()` and `geom_point()`.
+#'
+#' **I/O side-effects:** none.
+#'
+#' @return A `ggplot` object.
+#' @seealso [rename_images()], [process_metadata()], [process_training_images()],
+#'   [copy_in_batches()]
 #' @importFrom ggplot2 ggplot aes geom_line geom_point facet_wrap scale_x_datetime theme element_text vars
 #' @importFrom dplyr filter
 #' @importFrom rlang enquo quo_is_null
 #' @export
 #' @examples
-#' # Timeline of temperature for each camera
-#' generate_plot(processed_metadata = processed_metadata,
-#'               x = Image_dttm, y = temp,
-#'               color = Camera, facets = Camera,
-#'               filter_expr = File_date <= "2024-08-27")
-#' # Timeline of brightness luminance and color
-#' generate_plot(processed_metadata = processed_metadata,
-#'               x = Image_dttm, y = bLuma,
-#'               color = Camera, facets = Camera,
-#'               filter_expr = File_date <= "2024-08-27")
-#' # Brightness luminance points filtered by minimum values
-#' generate_plot(processed_metadata = processed_metadata,
-#'               x = Image_dttm, y = bLuma,
-#'               color = Camera, facets = Camera,
-#'               filter_expr = File_date <= "2024-08-27" & bLuma >= 250)
+#' demo_metadata <- data.frame(
+#'   Image_dttm = as.POSIXct("2024-08-01 00:00:00", tz = "UTC") + 0:5 * 3600,
+#'   bLuma = c(100, 120, 140, 130, 150, 160),
+#'   Camera = rep(c("C1", "C2"), each = 3),
+#'   stringsAsFactors = FALSE
+#' )
 #'
-
-
+#' p <- generate_plot(
+#'   processed_metadata = demo_metadata,
+#'   x = Image_dttm,
+#'   y = bLuma,
+#'   color = Camera,
+#'   facets = Camera
+#' )
+#' p
 
 generate_plot <- function(processed_metadata, x, y, color = NULL, facets = NULL,
                           filter_expr = NULL, angle = 0) {
@@ -81,4 +92,3 @@ generate_plot <- function(processed_metadata, x, y, color = NULL, facets = NULL,
 
   return(p)
 }
-

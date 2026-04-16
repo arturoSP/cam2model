@@ -1,34 +1,90 @@
 #' Process and Select Images for Training
 #'
-#' This function filters metadata according to one or more rules, samples a
-#' per-directory proportion of images, copies them to a destination directory,
-#' and generates CSV files for bookkeeping and annotation.
+#' Filters metadata according to one or more rules, samples a per-directory
+#' proportion of images, optionally copies sampled images to a destination
+#' directory, and generates CSV files for bookkeeping and annotation.
 #'
 #' @param metadata_file Character. Path to the CSV file containing metadata.
-#'   The file must include at least `Directory` and `FileName`.
-#' @param dest_dir Character. Path to the directory where sampled images will be copied.
-#' @param output_sample_file Character. Name of the CSV file storing the sampled image list.
-#' @param output_annotation_file Character. Name of the CSV file storing the annotation template.
-#' @param sample_proportion Numeric in (0, 1]. Proportion of images to sample within each directory.
+#' @param dest_dir Character. Path to the directory where outputs are written.
+#' @param output_sample_file Character. Name of the CSV file storing the sampled
+#'   image list.
+#' @param output_annotation_file Character. Name of the CSV file storing the
+#'   annotation template.
+#' @param sample_proportion Numeric in `(0, 1]`. Proportion of images to sample
+#'   within each directory.
 #' @param filters A list of filtering rules. Each rule must be a list with:
 #'   \itemize{
 #'     \item \code{var}: character, name of the metadata column to filter by.
 #'     \item \code{min}: lower threshold (or NULL).
 #'     \item \code{max}: upper threshold (or NULL).
 #'   }
-#'   If NULL, no filtering is applied.
+#'   If `NULL`, no filtering is applied.
 #' @param min_per_dir Integer. Minimum number of images to sample per directory.
 #' @param max_per_dir Integer. Maximum number of images to sample per directory.
-#' @param parallel Logical. If TRUE, file copying is done in parallel.
+#' @param copy_images Logical. If `TRUE`, sampled images are copied to
+#'   `dest_dir`.
+#' @param parallel Logical. If `TRUE`, file copying is done in parallel.
 #' @param workers Integer or NULL. Number of workers for parallel copying.
-#' @param show_progress Logical. If TRUE, show a progress bar using `progressr`.
+#' @param show_progress Logical. If `TRUE`, show a progress bar using
+#'   `progressr`.
 #'
-#' @return A tibble with the sampled images (`Directory`, `FileName`).
+#' @details
+#' **Expected minimum input columns (contract):** `Directory` and `FileName`
+#' must be present in `metadata_file`.
+#'
+#' **Produced columns:** returns sampled rows with at least `Directory`,
+#' `FileName`, optional `File_date`/`File_hour` (if present in input), and
+#' `file_path`; adds `dest_file` and `copied` when `copy_images = TRUE`.
+#'
+#' **I/O side-effects:**
+#' - Creates `dest_dir` if it does not exist.
+#' - Writes sampled CSV to `file.path(dest_dir, output_sample_file)`.
+#' - Writes annotation template CSV to
+#'   `file.path(dest_dir, output_annotation_file)`.
+#' - Optionally copies sampled files into `dest_dir` when
+#'   `copy_images = TRUE`.
+#'
+#' @return A tibble with sampled images and file paths used for training.
+#' @seealso [rename_images()], [process_metadata()], [generate_plot()],
+#'   [copy_in_batches()]
 #' @importFrom dplyr group_by summarise select mutate n group_modify slice_sample ungroup any_of
 #' @importFrom readr read_csv write_csv
 #' @importFrom fs dir_create
 #' @importFrom progressr with_progress progressor
 #' @export
+#' @examples
+#' src_dir <- tempfile("cam2model_train_src_")
+#' dest_dir <- tempfile("cam2model_train_out_")
+#' dir.create(src_dir, recursive = TRUE)
+#'
+#' # Create minimal files that can be referenced from metadata
+#' f1 <- file.path(src_dir, "img1.jpg")
+#' f2 <- file.path(src_dir, "img2.jpg")
+#' writeBin(charToRaw("a"), f1)
+#' writeBin(charToRaw("b"), f2)
+#'
+#' metadata_tbl <- data.frame(
+#'   Directory = c(src_dir, src_dir),
+#'   FileName = c("img1.jpg", "img2.jpg"),
+#'   File_hour = c(10, 14),
+#'   stringsAsFactors = FALSE
+#' )
+#' metadata_csv <- tempfile("cam2model_metadata_", fileext = ".csv")
+#' readr::write_csv(metadata_tbl, metadata_csv)
+#'
+#' sampled <- process_training_images(
+#'   metadata_file = metadata_csv,
+#'   dest_dir = dest_dir,
+#'   output_sample_file = "sampled_images.csv",
+#'   output_annotation_file = "annotation_data.csv",
+#'   sample_proportion = 1,
+#'   copy_images = FALSE,
+#'   show_progress = FALSE
+#' )
+#'
+#' sampled
+#' file.exists(file.path(dest_dir, "sampled_images.csv"))
+#' file.exists(file.path(dest_dir, "annotation_data.csv"))
 
 process_training_images <- function(
   metadata_file,

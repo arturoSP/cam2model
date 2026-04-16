@@ -15,42 +15,58 @@ generate_plot(
 )
 }
 \arguments{
-\item{processed_metadata}{A data frame containing the processed_metadata.}
+\item{processed_metadata}{A data frame containing processed metadata.}
 
-\item{x}{Character. The column name to use for the x-axis.}
+\item{x}{Bare column name to use for the x-axis.}
 
-\item{y}{Character. The column name to use for the y-axis.}
+\item{y}{Bare column name to use for the y-axis.}
 
-\item{color}{Character. (Optional) The column name to use for coloring the points/lines.}
+\item{color}{Bare column name (optional) to map to point/line color.}
 
-\item{facets}{Character. (Optional) The column name for facet wrapping.}
+\item{facets}{Bare column name (optional) used in \code{facet_wrap()}.}
 
-\item{filter_expr}{Expression. (Optional) An expression to filter the metadata.}
+\item{filter_expr}{Expression (optional) used to filter the metadata before
+plotting.}
 
-\item{angle}{Numeric. (Optional) Angle for x-axis text. Default is 0.}
+\item{angle}{Numeric. Angle for x-axis labels. Default is \code{0}.}
 }
 \value{
-A ggplot object.
+A \code{ggplot} object.
 }
 \description{
-This function generates ggplot visualizations for the provided metadata,
-allowing dynamic specification of axes, color, and additional filtering.
+Generates \code{ggplot2} visualizations for processed camera-trap metadata,
+with flexible x/y mappings, optional color/faceting, and optional filtering.
+}
+\details{
+\strong{Expected minimum input columns (contract):} the columns referenced in
+\code{x} and \code{y}, and optionally those used in \code{color}, \code{facets}, and
+\code{filter_expr}.
+
+\strong{Produced columns/artifacts:} none (no data is modified on disk). The
+function returns a \code{ggplot} object combining \code{geom_line()} and \code{geom_point()}.
+
+\strong{I/O side-effects:} none.
+}
+\seealso{
+\code{\link[=rename_images]{rename_images()}},
+\code{\link[=process_metadata]{process_metadata()}},
+\code{\link[=process_training_images]{process_training_images()}},
+\code{\link[=copy_in_batches]{copy_in_batches()}}
 }
 \examples{
-# Timeline of temperature for each camera
-generate_plot(processed_metadata = processed_metadata,
-              x = Image_dttm, y = temp,
-              color = Camera, facets = Camera,
-              filter_expr = File_date <= "2024-08-27")
-# Timeline of brightness luminance and color
-generate_plot(processed_metadata = processed_metadata,
-              x = Image_dttm, y = bLuma,
-              color = Camera, facets = Camera,
-              filter_expr = File_date <= "2024-08-27")
-# Brightness luminance points filtered by minimum values
-generate_plot(processed_metadata = processed_metadata,
-              x = Image_dttm, y = bLuma,
-              color = Camera, facets = Camera,
-              filter_expr = File_date <= "2024-08-27" & bLuma >= 250)
+demo_metadata <- data.frame(
+  Image_dttm = as.POSIXct("2024-08-01 00:00:00", tz = "UTC") + 0:5 * 3600,
+  bLuma = c(100, 120, 140, 130, 150, 160),
+  Camera = rep(c("C1", "C2"), each = 3),
+  stringsAsFactors = FALSE
+)
 
+p <- generate_plot(
+  processed_metadata = demo_metadata,
+  x = Image_dttm,
+  y = bLuma,
+  color = Camera,
+  facets = Camera
+)
+p
 }

@@ -64,13 +64,15 @@ evenly sized groups (for example, 250 files per folder) while preserving a
 record of the operation.
 }
 \details{
-The input data frame must contain at least two columns:
-\itemize{
-\item \code{id}: unique or semi-unique identifier for each file
-\item \code{path}: source path to the file on disk
-}
+\strong{Expected minimum input columns (contract):} \code{df} must include \code{id} and
+\code{path}.
 
-Files are assigned to folders according to their row order in \code{df}.
+\strong{Produced columns:} returns one row per valid input record with \code{id},
+\code{path}, \code{source_exists}, \code{batch_id}, \code{batch_folder_name}, \code{dest_file_name},
+\code{dest_path}, \code{copied}, and \code{status}.
+
+\strong{I/O side-effects:} creates \code{output_dir} and batch subfolders when
+\code{dry_run = FALSE}; copies files into those subfolders unless \code{dry_run = TRUE}.
 
 The function creates one folder per batch using zero-padded sequential
 numbering, for example:
@@ -87,16 +89,17 @@ Destination file names are generated from the source file name. When
 
 If duplicates remain within a batch, they are disambiguated with
 \code{\link[base:make.unique]{base::make.unique()}}.
-
-The function returns a data frame describing the outcome for each row,
-including whether the source existed, the assigned batch, the destination
-path, and the copy status.
+}
+\seealso{
+\code{\link[=rename_images]{rename_images()}},
+\code{\link[=process_metadata]{process_metadata()}},
+\code{\link[=generate_plot]{generate_plot()}},
+\code{\link[=process_training_images]{process_training_images()}}
 }
 \examples{
-# Create a temporary source directory with example files
-src_dir <- file.path(tempdir(), "example_source")
-out_dir <- file.path(tempdir(), "example_output")
-
+# Create temporary source and output directories
+src_dir <- tempfile("cam2model_batch_src_")
+out_dir <- tempfile("cam2model_batch_out_")
 dir.create(src_dir, recursive = TRUE, showWarnings = FALSE)
 dir.create(out_dir, recursive = TRUE, showWarnings = FALSE)
 
@@ -135,5 +138,4 @@ report <- copy_in_batches(
 )
 
 report[, c("id", "dest_path", "status")]
-
 }

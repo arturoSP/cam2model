@@ -20,16 +20,18 @@ process_training_images(
 )
 }
 \arguments{
-\item{metadata_file}{Character. Path to the CSV file containing metadata.
-The file must include at least \code{Directory} and \code{FileName}.}
+\item{metadata_file}{Character. Path to the CSV file containing metadata.}
 
-\item{dest_dir}{Character. Path to the directory where sampled images will be copied.}
+\item{dest_dir}{Character. Path to the directory where outputs are written.}
 
-\item{output_sample_file}{Character. Name of the CSV file storing the sampled image list.}
+\item{output_sample_file}{Character. Name of the CSV file storing the sampled
+image list.}
 
-\item{output_annotation_file}{Character. Name of the CSV file storing the annotation template.}
+\item{output_annotation_file}{Character. Name of the CSV file storing the
+annotation template.}
 
-\item{sample_proportion}{Numeric in (0, 1]. Proportion of images to sample within each directory.}
+\item{sample_proportion}{Numeric in \code{(0, 1]}. Proportion of images to sample
+within each directory.}
 
 \item{filters}{A list of filtering rules. Each rule must be a list with:
 \itemize{
@@ -37,23 +39,85 @@ The file must include at least \code{Directory} and \code{FileName}.}
 \item \code{min}: lower threshold (or NULL).
 \item \code{max}: upper threshold (or NULL).
 }
-If NULL, no filtering is applied.}
+If \code{NULL}, no filtering is applied.}
 
 \item{min_per_dir}{Integer. Minimum number of images to sample per directory.}
 
 \item{max_per_dir}{Integer. Maximum number of images to sample per directory.}
 
-\item{parallel}{Logical. If TRUE, file copying is done in parallel.}
+\item{copy_images}{Logical. If \code{TRUE}, sampled images are copied to
+\code{dest_dir}.}
+
+\item{parallel}{Logical. If \code{TRUE}, file copying is done in parallel.}
 
 \item{workers}{Integer or NULL. Number of workers for parallel copying.}
 
-\item{show_progress}{Logical. If TRUE, show a progress bar using \code{progressr}.}
+\item{show_progress}{Logical. If \code{TRUE}, show a progress bar using
+\code{progressr}.}
 }
 \value{
-A tibble with the sampled images (\code{Directory}, \code{FileName}).
+A tibble with sampled images and file paths used for training.
 }
 \description{
-This function filters metadata according to one or more rules, samples a
-per-directory proportion of images, copies them to a destination directory,
-and generates CSV files for bookkeeping and annotation.
+Filters metadata according to one or more rules, samples a per-directory
+proportion of images, optionally copies sampled images to a destination
+directory, and generates CSV files for bookkeeping and annotation.
+}
+\details{
+\strong{Expected minimum input columns (contract):} \code{Directory} and \code{FileName}
+must be present in \code{metadata_file}.
+
+\strong{Produced columns:} returns sampled rows with at least \code{Directory},
+\code{FileName}, optional \code{File_date}/\code{File_hour} (if present in input), and
+\code{file_path}; adds \code{dest_file} and \code{copied} when \code{copy_images = TRUE}.
+
+\strong{I/O side-effects:}
+\itemize{
+\item Creates \code{dest_dir} if it does not exist.
+\item Writes sampled CSV to \code{file.path(dest_dir, output_sample_file)}.
+\item Writes annotation template CSV to
+\code{file.path(dest_dir, output_annotation_file)}.
+\item Optionally copies sampled files into \code{dest_dir} when
+\code{copy_images = TRUE}.
+}
+}
+\seealso{
+\code{\link[=rename_images]{rename_images()}},
+\code{\link[=process_metadata]{process_metadata()}},
+\code{\link[=generate_plot]{generate_plot()}},
+\code{\link[=copy_in_batches]{copy_in_batches()}}
+}
+\examples{
+src_dir <- tempfile("cam2model_train_src_")
+dest_dir <- tempfile("cam2model_train_out_")
+dir.create(src_dir, recursive = TRUE)
+
+# Create minimal files that can be referenced from metadata
+f1 <- file.path(src_dir, "img1.jpg")
+f2 <- file.path(src_dir, "img2.jpg")
+writeBin(charToRaw("a"), f1)
+writeBin(charToRaw("b"), f2)
+
+metadata_tbl <- data.frame(
+  Directory = c(src_dir, src_dir),
+  FileName = c("img1.jpg", "img2.jpg"),
+  File_hour = c(10, 14),
+  stringsAsFactors = FALSE
+)
+metadata_csv <- tempfile("cam2model_metadata_", fileext = ".csv")
+readr::write_csv(metadata_tbl, metadata_csv)
+
+sampled <- process_training_images(
+  metadata_file = metadata_csv,
+  dest_dir = dest_dir,
+  output_sample_file = "sampled_images.csv",
+  output_annotation_file = "annotation_data.csv",
+  sample_proportion = 1,
+  copy_images = FALSE,
+  show_progress = FALSE
+)
+
+sampled
+file.exists(file.path(dest_dir, "sampled_images.csv"))
+file.exists(file.path(dest_dir, "annotation_data.csv"))
 }
