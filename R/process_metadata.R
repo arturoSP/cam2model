@@ -4,9 +4,10 @@
 #' and saves the resulting metadata to a CSV file.
 #'
 #' @param output_dir Character. Path to the main directory containing camera folders with renamed images.
-#' @param output_file Character. Path to the output CSV file where metadata will be saved.
-#' @param output_file Character. Experimental. When set to TRUE, it will read and try to parse the info
-#' within the UserComment field. If you run it and the function fails, try with FALSE.
+#' @param output_file Character. Relative file path (from `output_dir`) for the output CSV where metadata will be saved.
+#' The parent directory for this file must already exist inside `output_dir`.
+#' @param UserComment Logical. Default `FALSE`. When `TRUE`, attempts to parse and expand the EXIF
+#' `UserComment` field into additional metadata columns. Set to `FALSE` if parsing fails for your files.
 #' @return A tibble with the processed metadata.
 #' @importFrom exifr read_exif
 #' @importFrom dplyr bind_rows mutate select left_join relocate
@@ -31,8 +32,17 @@ process_metadata <- function(output_dir, output_file, UserComment = FALSE) {
   if (!dir.exists(output_dir)) {
     stop("The main directory does not exist: ", output_dir)
   }
-  if (missing(output_file)) {
-    stop("Please provide an output file path.")
+  if (missing(output_file) || !is.character(output_file) || length(output_file) != 1 || output_file == "") {
+    stop("Please provide a non-empty output file path.")
+  }
+  if (fs::is_absolute_path(output_file)) {
+    stop("`output_file` must be a relative path inside `output_dir`.")
+  }
+
+  output_path <- file.path(output_dir, output_file)
+  output_parent <- dirname(output_path)
+  if (!dir.exists(output_parent)) {
+    stop("The output directory does not exist inside `output_dir`: ", output_parent)
   }
 
   # Helper function: Parse UserComment
@@ -129,7 +139,7 @@ process_metadata <- function(output_dir, output_file, UserComment = FALSE) {
   # Save to CSV
   readr::write_csv(
     processed_metadata,
-    file = paste(output_dir, output_file, sep = "/")
+    file = output_path
   )
 
   # Return the processed metadata
