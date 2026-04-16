@@ -1,174 +1,246 @@
+# cam2model: pipeline reproducible para preparar imágenes de cámaras trampa
 
-# cam2model: Preprocessing Camera Trap Data for Machine Learning Models
+## Flujo recomendado
 
-## Overview
+El flujo sugerido para preparar datos de entrenamiento es:
 
-`cam2model` is a developing R package designed to facilitate the
-preprocessing of camera trap data, preparing datasets for training image
-classification models in machine learning. This package automates common
-tasks such as metadata extraction, selecting relevant images, sampling,
-and file handling, significantly reducing data preparation time for
-wildlife analysis projects.
+1. `rename_images()`
+2. `process_metadata()`
+3. `generate_plot()` *(opcional, exploración de calidad)*
+4. `process_training_images()`
+5. `copy_in_batches()`
 
-## Key Features
+## Funciones exportadas: firma vigente
 
--   Extract EXIF metadata directly from images.
+```r
+rename_images(
+  input_dir,
+  output_dir,
+  site_name = NULL,
+  recursive = TRUE,
+  extensions = c("jpg", "jpeg", "png", "tif", "tiff"),
+  keep_relative_path = TRUE,
+  date_fields = c("DateTimeOriginal", "FileModifyDate"),
+  parallel = FALSE,
+  workers = NULL,
+  overwrite = FALSE,
+  return_plan = FALSE
+)
 
--   Dynamically process and analyze metadata columns, such as
-    UserComment.
+process_metadata(
+  output_dir,
+  output_file,
+  UserComment = FALSE
+)
 
--   Automatically select daytime images for training.
+generate_plot(
+  processed_metadata,
+  x,
+  y,
+  color = NULL,
+  facets = NULL,
+  filter_expr = NULL,
+  angle = 0
+)
 
--   Tools for generating image subsets, copying files to destination
-    folders, and creating annotation databases.
+process_training_images(
+  metadata_file,
+  dest_dir,
+  output_sample_file,
+  output_annotation_file,
+  sample_proportion = 0.5,
+  filters = NULL,
+  min_per_dir = 1,
+  max_per_dir = Inf,
+  copy_images = FALSE,
+  parallel = FALSE,
+  workers = NULL,
+  show_progress = TRUE
+)
 
--   Generate custom plots to explore and visualize metadata.
-
-## Core Functions 
-
-### 1. `rename_images()`
-
-Renames images based on their EXIF metadata and organizes files into
-structured directories. 
-
-#### Parameters
-
-- input_dir: Main directory where the original images are stored.
-
-- output_dir: Directory where the renamed images will be saved.
-
-#### Features
-
-- Extracts the file modification date from EXIF data.
-
-- Generates unique names that include the date, camera name, and subfolder.
-
-- Copies the renamed images without modifying the originals.
-
-### 2.  `process_metadata()`
-
-Extracts EXIF metadata from all images in a directory and organizes the
-information into a tibble. 
-
-#### Parameters
-
-- output_dir: Main directory containing folders with renamed images.
-
-- output_file: Path to the output CSV file where metadata will be saved.
-
-#### Features
-
-- Reads EXIF metadata such as FileModifyDate, Camera, and other key attributes.
-
-- Returns a consolidated tibble with metadata from all cameras.
-
-### 3.  `generate_plot()`
-
-Creates custom plots based on metadata. 
-
-#### Parameters
-
-- processed_metadata: Data frame with the metadata from the images.
-
-- x, y: Columns for the x and y axes.
-
-- color: Optional. Column to assign colors.
-
-- facets: Optional. Column for dividing the plot into facets.
-
-- filter_expr: Optional. Expression to filter the data.
-
-- angle: Optional. Rotation angle for x-axis labels.
-
-#### Features
-
-- Supports line and point plots with facets.
-
-- Allows customization of axis format and labels.
-
-- Useful for exploring trends in image data.
-
-### 4.  `process_training_images()`
-
-Filters daytime images, samples a subset, copies the selected files to a
-destination folder, and creates an annotation database. 
-
-#### Parameters
-
-- metadata_file: Path to the CSV file containing image metadata.
-
-- dest_dir: Destination directory where selected images will be copied.
-
-- output_sample_file: Path to save the sampled images' metadata as a CSV file.
-
-- output_annotation_file: Path to save the annotation file.
-
-- sample_proportion: Proportion of images to sample within each directory.
-
-- filter_by: Column name of the luminosity variable (e.g. `bLuma`)
-
-- min_lum, max_lum: Luminosity thresholds. 
-
-- min_per_dir, max_per_dir: Range for the acceptable number of images to work with within each directory. 
-
-#### Features
-
-- Filters images by luminosity.
-
-- Randomly selects a percentage of images per directory.
-
-- Copies selected images to a new directory and saves annotation information.
-
-## Example Workflow 
-
-#### Step 1: Rename images
-
-```{r, eval=FALSE}
-rename_images(input_dir = "C:/raw_images", output_dir = "C:/renamed_images")
+copy_in_batches(
+  df,
+  output_dir,
+  batch_size = 250L,
+  folder_prefix = "batch_",
+  rename_with_id = TRUE,
+  overwrite = FALSE,
+  dry_run = FALSE,
+  verbose = TRUE
+)
 ```
 
-#### Step 2: Extract and process metadata
+## Tabla rápida de onboarding
 
-```{r, eval=FALSE}
-metadata <- process_metadata(output_dir = "C:/renamed_images", output_file = "metadata.csv")
+| Función | Entrada | Salida | Propósito |
+|---|---|---|---|
+| `rename_images()` | Directorio fuente con imágenes crudas | Tibble con resultado de copiado/renombrado (o lista `plan` + `result` si `return_plan = TRUE`) | Aplanar estructura, estandarizar nombres y copiar imágenes a un directorio de trabajo |
+| `process_metadata()` | Directorio de imágenes renombradas + nombre de CSV | Tibble de metadatos + CSV guardado en `output_dir/output_file` | Extraer EXIF consolidado y, opcionalmente, parsear `UserComment` |
+| `generate_plot()` | Data frame de metadatos y variables estéticas | Objeto `ggplot` | Explorar calidad de datos y patrones antes del muestreo |
+| `process_training_images()` | CSV de metadatos + reglas de filtro + parámetros de muestreo | Tibble de muestra + `sample CSV` + `annotation CSV` (+ copia opcional de imágenes) | Filtrar, muestrear por directorio y preparar archivos para anotación |
+| `copy_in_batches()` | Data frame con columnas `id` y `path` | Data frame de reporte de copiado por lote | Reorganizar archivos en lotes (`batch_001`, `batch_002`, ...) |
+
+## Ejemplos mínimos ejecutables con `tempdir()`
+
+> Los siguientes bloques son mínimos y reproducibles. Para que `rename_images()` y `process_metadata()` extraigan EXIF real, usa imágenes reales con metadatos.
+
+### 1) `rename_images()`
+
+```r
+library(cam2model)
+
+raw_dir <- file.path(tempdir(), "raw_site")
+out_dir <- file.path(tempdir(), "renamed_site")
+dir.create(raw_dir, recursive = TRUE, showWarnings = FALSE)
+dir.create(out_dir, recursive = TRUE, showWarnings = FALSE)
+
+# Copia aquí imágenes reales para una ejecución completa
+# file.copy("/ruta/a/imagen.jpg", file.path(raw_dir, "cam1", "imagen.jpg"), recursive = TRUE)
+
+rename_result <- rename_images(
+  input_dir = raw_dir,
+  output_dir = out_dir,
+  site_name = "site_demo",
+  overwrite = FALSE
+)
+
+rename_result
 ```
 
-#### Step 3: Generate exploratory plots
+### 2) `process_metadata()`
 
-```{r, eval=FALSE}
-generate_plot(processed_metadata = metadata, x = Image_dttm, y = temp,
-color = Camera, facets = Camera, filter_expr = File_hms <=
-"08:55:00", angle = 30 )
+```r
+metadata <- process_metadata(
+  output_dir = out_dir,
+  output_file = "metadata.csv",
+  UserComment = FALSE
+)
+
+metadata
+metadata_csv <- file.path(out_dir, "metadata.csv")
+file.exists(metadata_csv)
 ```
 
-#### Step 4: Select images for training
+### 3) `generate_plot()` (opcional)
 
-```{r, eval=FALSE}
-process_training_images( metadata_file = "processed_metadata.csv",
-dest_dir = "C:/train_images", output_sample_file = "sampled_images.csv",
-output_annotation_file = "annotation_data.csv", sample_proportion = 0.5, filter_by = "bLuma")
+```r
+# Requiere columnas válidas en metadata (p.ej. Image_dttm, bLuma, Camera)
+# p <- generate_plot(
+#   processed_metadata = metadata,
+#   x = Image_dttm,
+#   y = bLuma,
+#   color = Camera,
+#   facets = Camera,
+#   angle = 30
+# )
+# print(p)
 ```
 
-## Requirements
+### 4) `process_training_images()`
 
-R version 4.4.2 or higher.
+```r
+train_dir <- file.path(tempdir(), "train_output")
+dir.create(train_dir, recursive = TRUE, showWarnings = FALSE)
 
-Required packages:
+# Ejemplo de filtro por luminosidad si existe la columna bLuma
+rules <- list(list(var = "bLuma", min = 50, max = 255))
 
-- dplyr
+sampled <- process_training_images(
+  metadata_file = metadata_csv,
+  dest_dir = train_dir,
+  output_sample_file = "sampled_images.csv",
+  output_annotation_file = "annotation_data.csv",
+  sample_proportion = 0.5,
+  filters = rules,
+  min_per_dir = 1,
+  max_per_dir = 100,
+  copy_images = FALSE
+)
 
-- tidyr
+sampled
+file.exists(file.path(train_dir, "sampled_images.csv"))
+file.exists(file.path(train_dir, "annotation_data.csv"))
+```
 
-- lubridate
+### 5) `copy_in_batches()`
 
-- stringr
+```r
+# Usando file_path generado por process_training_images()
+# Se requiere que sampled$file_path apunte a archivos existentes.
 
-- ggplot2
+batch_report <- copy_in_batches(
+  df = data.frame(
+    id = sprintf("img_%03d", seq_len(nrow(sampled))),
+    path = sampled$file_path,
+    stringsAsFactors = FALSE
+  ),
+  output_dir = file.path(tempdir(), "batches"),
+  batch_size = 250L,
+  folder_prefix = "batch_",
+  dry_run = TRUE,
+  verbose = FALSE
+)
 
-- readr
+head(batch_report)
+```
 
-- fs
+## Pipeline end-to-end (objetos intermedios y salidas)
 
-- purrr
+```r
+# 1) Renombrado
+rename_result <- rename_images(
+  input_dir = raw_dir,
+  output_dir = out_dir,
+  site_name = "site_demo"
+)
 
-- exifr (for working with EXIF metadata).
+# 2) Metadatos
+metadata <- process_metadata(
+  output_dir = out_dir,
+  output_file = "metadata.csv",
+  UserComment = FALSE
+)
+metadata_csv <- file.path(out_dir, "metadata.csv")
+
+# 3) Plot opcional
+# p <- generate_plot(metadata, x = Image_dttm, y = bLuma, color = Camera)
+
+# 4) Muestreo + CSVs
+sampled <- process_training_images(
+  metadata_file = metadata_csv,
+  dest_dir = train_dir,
+  output_sample_file = "sampled_images.csv",
+  output_annotation_file = "annotation_data.csv",
+  sample_proportion = 0.5,
+  filters = list(list(var = "bLuma", min = 50, max = 255)),
+  copy_images = FALSE
+)
+
+sample_csv <- file.path(train_dir, "sampled_images.csv")
+annotation_csv <- file.path(train_dir, "annotation_data.csv")
+
+# 5) Lotes copiados (simulación con dry_run)
+batch_report <- copy_in_batches(
+  df = data.frame(
+    id = sprintf("img_%03d", seq_len(nrow(sampled))),
+    path = sampled$file_path,
+    stringsAsFactors = FALSE
+  ),
+  output_dir = file.path(tempdir(), "batches"),
+  batch_size = 250L,
+  dry_run = TRUE,
+  verbose = FALSE
+)
+
+# Salidas clave generadas por el pipeline:
+list(
+  sampled_csv_exists = file.exists(sample_csv),
+  annotation_csv_exists = file.exists(annotation_csv),
+  batch_report_rows = nrow(batch_report)
+)
+```
+
+## Requisitos
+
+- R >= 4.4.2
+- Paquetes sugeridos: `dplyr`, `tidyr`, `lubridate`, `stringr`, `ggplot2`, `readr`, `fs`, `purrr`, `exifr`, `progressr`
