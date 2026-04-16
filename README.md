@@ -1,182 +1,86 @@
-# cam2model: pipeline reproducible para preparar imágenes de cámaras trampa
+# cam2model
+
+`cam2model` organiza un flujo de preparación de imágenes de cámaras trampa para entrenamiento y anotación.
 
 ## Flujo recomendado
 
-El flujo sugerido para preparar datos de entrenamiento es:
-
 1. `rename_images()`
 2. `process_metadata()`
-3. `generate_plot()` *(opcional, exploración de calidad)*
+3. `generate_plot()` *(opcional)*
 4. `process_training_images()`
 5. `copy_in_batches()`
 
-## Funciones exportadas: firma vigente
+## Contrato rápido por etapa
 
-```r
-rename_images(
-  input_dir,
-  output_dir,
-  site_name = NULL,
-  recursive = TRUE,
-  extensions = c("jpg", "jpeg", "png", "tif", "tiff"),
-  keep_relative_path = TRUE,
-  date_fields = c("DateTimeOriginal", "FileModifyDate"),
-  parallel = FALSE,
-  workers = NULL,
-  overwrite = FALSE,
-  return_plan = FALSE
-)
-
-process_metadata(
-  output_dir,
-  output_file,
-  UserComment = FALSE
-)
-
-generate_plot(
-  processed_metadata,
-  x,
-  y,
-  color = NULL,
-  facets = NULL,
-  filter_expr = NULL,
-  angle = 0
-)
-
-process_training_images(
-  metadata_file,
-  dest_dir,
-  output_sample_file,
-  output_annotation_file,
-  sample_proportion = 0.5,
-  filters = NULL,
-  min_per_dir = 1,
-  max_per_dir = Inf,
-  copy_images = FALSE,
-  parallel = FALSE,
-  workers = NULL,
-  show_progress = TRUE
-)
-
-copy_in_batches(
-  df,
-  output_dir,
-  batch_size = 250L,
-  folder_prefix = "batch_",
-  rename_with_id = TRUE,
-  overwrite = FALSE,
-  dry_run = FALSE,
-  verbose = TRUE
-)
-```
-
-## Tabla rápida de onboarding
-
-| Función | Entrada | Salida | Propósito |
+| Etapa | Entrada mínima | Salida principal | Artefactos I/O |
 |---|---|---|---|
-| `rename_images()` | Directorio fuente con imágenes crudas | Tibble con resultado de copiado/renombrado (o lista `plan` + `result` si `return_plan = TRUE`) | Aplanar estructura, estandarizar nombres y copiar imágenes a un directorio de trabajo |
-| `process_metadata()` | Directorio de imágenes renombradas + nombre de CSV | Tibble de metadatos + CSV guardado en `output_dir/output_file` | Extraer EXIF consolidado y, opcionalmente, parsear `UserComment` |
-| `generate_plot()` | Data frame de metadatos y variables estéticas | Objeto `ggplot` | Explorar calidad de datos y patrones antes del muestreo |
-| `process_training_images()` | CSV de metadatos + reglas de filtro + parámetros de muestreo | Tibble de muestra + `sample CSV` + `annotation CSV` (+ copia opcional de imágenes) | Filtrar, muestrear por directorio y preparar archivos para anotación |
-| `copy_in_batches()` | Data frame con columnas `id` y `path` | Data frame de reporte de copiado por lote | Reorganizar archivos en lotes (`batch_001`, `batch_002`, ...) |
+| `rename_images()` | Directorio con imágenes | tibble de resultado (o lista con `plan`+`result`) | crea carpeta de sitio en `output_dir` y copia imágenes |
+| `process_metadata()` | Directorio de imágenes renombradas | tibble de metadatos | escribe `output_file` CSV |
+| `generate_plot()` | data frame con columnas usadas en estéticas | objeto `ggplot` | sin efectos en disco |
+| `process_training_images()` | CSV con `Directory` y `FileName` | tibble de muestra | crea `dest_dir`, escribe 2 CSV y copia opcional |
+| `copy_in_batches()` | data frame con `id` y `path` | data frame reporte por archivo | crea subcarpetas batch y copia (o simula con `dry_run`) |
 
-## Ejemplos mínimos ejecutables con `tempdir()`
-
-> Los siguientes bloques son mínimos y reproducibles. Para que `rename_images()` y `process_metadata()` extraigan EXIF real, usa imágenes reales con metadatos.
-
-### 1) `rename_images()`
+## Ejemplo end-to-end (rutas temporales)
 
 ```r
 library(cam2model)
 
-raw_dir <- file.path(tempdir(), "raw_site")
-out_dir <- file.path(tempdir(), "renamed_site")
-dir.create(raw_dir, recursive = TRUE, showWarnings = FALSE)
-dir.create(out_dir, recursive = TRUE, showWarnings = FALSE)
+# 1) Preparar rutas temporales
+raw_dir <- tempfile("cam2model_raw_")
+renamed_dir <- tempfile("cam2model_renamed_")
+train_dir <- tempfile("cam2model_train_")
+batch_dir <- tempfile("cam2model_batches_")
 
-# Copia aquí imágenes reales para una ejecución completa
-# file.copy("/ruta/a/imagen.jpg", file.path(raw_dir, "cam1", "imagen.jpg"), recursive = TRUE)
+dir.create(raw_dir, recursive = TRUE)
+dir.create(renamed_dir, recursive = TRUE)
+dir.create(train_dir, recursive = TRUE)
 
-rename_result <- rename_images(
-  input_dir = raw_dir,
-  output_dir = out_dir,
-  site_name = "site_demo",
-  overwrite = FALSE
+# Copia imágenes reales de cámara trampa en raw_dir antes de ejecutar
+# file.copy("path_to_real_image.jpg", file.path(raw_dir, "cam1", "imagen.jpg"), recursive = TRUE)
+
+# 2) Renombrar/aplanar (requiere imágenes reales)
+# renamed <- rename_images(input_dir = raw_dir, output_dir = renamed_dir, site_name = "demo")
+
+# 3) Extraer metadatos (requiere EXIF real)
+# metadata <- process_metadata(output_dir = renamed_dir, output_file = "metadata.csv", UserComment = FALSE)
+# metadata_csv <- file.path(renamed_dir, "metadata.csv")
+
+# 4) Ejemplo autocontenido para training sin EXIF real
+src_dir <- tempfile("cam2model_src_")
+dir.create(src_dir, recursive = TRUE)
+file_a <- file.path(src_dir, "a.jpg")
+file_b <- file.path(src_dir, "b.jpg")
+writeBin(charToRaw("a"), file_a)
+writeBin(charToRaw("b"), file_b)
+
+metadata_tbl <- data.frame(
+  Directory = c(src_dir, src_dir),
+  FileName = c("a.jpg", "b.jpg"),
+  File_hour = c(8, 11),
+  stringsAsFactors = FALSE
 )
-
-rename_result
-```
-
-### 2) `process_metadata()`
-
-```r
-metadata <- process_metadata(
-  output_dir = out_dir,
-  output_file = "metadata.csv",
-  UserComment = FALSE
-)
-
-metadata
-metadata_csv <- file.path(out_dir, "metadata.csv")
-file.exists(metadata_csv)
-```
-
-### 3) `generate_plot()` (opcional)
-
-```r
-# Requiere columnas válidas en metadata (p.ej. Image_dttm, bLuma, Camera)
-# p <- generate_plot(
-#   processed_metadata = metadata,
-#   x = Image_dttm,
-#   y = bLuma,
-#   color = Camera,
-#   facets = Camera,
-#   angle = 30
-# )
-# print(p)
-```
-
-### 4) `process_training_images()`
-
-```r
-train_dir <- file.path(tempdir(), "train_output")
-dir.create(train_dir, recursive = TRUE, showWarnings = FALSE)
-
-# Ejemplo de filtro por luminosidad si existe la columna bLuma
-rules <- list(list(var = "bLuma", min = 50, max = 255))
+metadata_csv <- tempfile("cam2model_metadata_", fileext = ".csv")
+readr::write_csv(metadata_tbl, metadata_csv)
 
 sampled <- process_training_images(
   metadata_file = metadata_csv,
   dest_dir = train_dir,
   output_sample_file = "sampled_images.csv",
   output_annotation_file = "annotation_data.csv",
-  sample_proportion = 0.5,
-  filters = rules,
-  min_per_dir = 1,
-  max_per_dir = 100,
-  copy_images = FALSE
+  sample_proportion = 1,
+  copy_images = FALSE,
+  show_progress = FALSE
 )
 
-sampled
-file.exists(file.path(train_dir, "sampled_images.csv"))
-file.exists(file.path(train_dir, "annotation_data.csv"))
-```
-
-### 5) `copy_in_batches()`
-
-```r
-# Usando file_path generado por process_training_images()
-# Se requiere que sampled$file_path apunte a archivos existentes.
-
+# 5) Reorganizar en lotes (simulación)
 batch_report <- copy_in_batches(
   df = data.frame(
     id = sprintf("img_%03d", seq_len(nrow(sampled))),
     path = sampled$file_path,
     stringsAsFactors = FALSE
   ),
-  output_dir = file.path(tempdir(), "batches"),
+  output_dir = batch_dir,
   batch_size = 250L,
-  folder_prefix = "batch_",
   dry_run = TRUE,
   verbose = FALSE
 )
@@ -184,63 +88,6 @@ batch_report <- copy_in_batches(
 head(batch_report)
 ```
 
-## Pipeline end-to-end (objetos intermedios y salidas)
+## Vignette de flujo
 
-```r
-# 1) Renombrado
-rename_result <- rename_images(
-  input_dir = raw_dir,
-  output_dir = out_dir,
-  site_name = "site_demo"
-)
-
-# 2) Metadatos
-metadata <- process_metadata(
-  output_dir = out_dir,
-  output_file = "metadata.csv",
-  UserComment = FALSE
-)
-metadata_csv <- file.path(out_dir, "metadata.csv")
-
-# 3) Plot opcional
-# p <- generate_plot(metadata, x = Image_dttm, y = bLuma, color = Camera)
-
-# 4) Muestreo + CSVs
-sampled <- process_training_images(
-  metadata_file = metadata_csv,
-  dest_dir = train_dir,
-  output_sample_file = "sampled_images.csv",
-  output_annotation_file = "annotation_data.csv",
-  sample_proportion = 0.5,
-  filters = list(list(var = "bLuma", min = 50, max = 255)),
-  copy_images = FALSE
-)
-
-sample_csv <- file.path(train_dir, "sampled_images.csv")
-annotation_csv <- file.path(train_dir, "annotation_data.csv")
-
-# 5) Lotes copiados (simulación con dry_run)
-batch_report <- copy_in_batches(
-  df = data.frame(
-    id = sprintf("img_%03d", seq_len(nrow(sampled))),
-    path = sampled$file_path,
-    stringsAsFactors = FALSE
-  ),
-  output_dir = file.path(tempdir(), "batches"),
-  batch_size = 250L,
-  dry_run = TRUE,
-  verbose = FALSE
-)
-
-# Salidas clave generadas por el pipeline:
-list(
-  sampled_csv_exists = file.exists(sample_csv),
-  annotation_csv_exists = file.exists(annotation_csv),
-  batch_report_rows = nrow(batch_report)
-)
-```
-
-## Requisitos
-
-- R >= 4.4.2
-- Paquetes sugeridos: `dplyr`, `tidyr`, `lubridate`, `stringr`, `ggplot2`, `readr`, `fs`, `purrr`, `exifr`, `progressr`
+Consulta `vignettes/cam2model-workflow.Rmd` para una guía paso a paso con tabla de entradas/salidas/artefactos.

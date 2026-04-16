@@ -23,6 +23,5 @@ Encoding: UTF-8
 Roxygen: list(markdown = TRUE)
 RoxygenNote: 7.3.3
 Imports: dplyr, tidyr, lubridate, stringr, ggplot2, readr, fs, exifr, rlang, tibble, progressr
-Suggests: future, future.apply, testthat (>= 3.0.0)
-
-Config/testthat/edition: 3
+Suggests: future, future.apply, knitr, rmarkdown
+VignetteBuilder: knitr

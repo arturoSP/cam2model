@@ -54,3 +54,46 @@ This wrapper function builds a renaming plan and immediately executes it,
 allowing the user to flatten and rename all images from a sampling-site
 directory in a single call.
 }
+\details{
+\strong{Expected minimum input columns (internal contract):} none. The function
+reads image files directly from \code{input_dir} and builds metadata internally.
+
+\strong{Produced columns:}
+\itemize{
+\item If \code{return_plan = FALSE}, returns the execution table with columns from the
+renaming plan plus \code{copied}.
+\item If \code{return_plan = TRUE}, returns a list with:
+\itemize{
+\item \code{plan}: planning table that includes \code{original_path}, \code{new_name}, and
+\code{new_path}.
+\item \code{result}: the same rows plus \code{copied}.
+}
+}
+
+\strong{I/O side-effects:} creates \code{<output_dir>/<site_name>} when needed and
+copies files to that folder using standardized names.
+}
+\seealso{
+\code{\link[=process_metadata]{process_metadata()}},
+\code{\link[=generate_plot]{generate_plot()}},
+\code{\link[=process_training_images]{process_training_images()}},
+\code{\link[=copy_in_batches]{copy_in_batches()}}
+}
+\examples{
+\dontrun{
+# Requires real image files on disk.
+raw_dir <- tempfile("cam2model_raw_")
+out_dir <- tempfile("cam2model_out_")
+dir.create(raw_dir, recursive = TRUE)
+dir.create(out_dir, recursive = TRUE)
+
+# Copy real camera-trap images into `raw_dir` before running.
+result <- rename_images(
+  input_dir = raw_dir,
+  output_dir = out_dir,
+  site_name = "site_demo",
+  overwrite = FALSE
+)
+head(result)
+}
+}

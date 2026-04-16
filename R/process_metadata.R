@@ -1,14 +1,35 @@
 #' Process Camera Trap Metadata
 #'
-#' Extracts EXIF metadata from images in a directory, processes the 'UserComment' column,
-#' and saves the resulting metadata to a CSV file.
+#' Extracts EXIF metadata from images in a directory, processes the
+#' `UserComment` column, and saves the resulting metadata to a CSV file.
 #'
-#' @param output_dir Character. Path to the main directory containing camera folders with renamed images.
-#' @param output_file Character. Relative file path (from `output_dir`) for the output CSV where metadata will be saved.
-#' The parent directory for this file must already exist inside `output_dir`.
-#' @param UserComment Logical. Default `FALSE`. When `TRUE`, attempts to parse and expand the EXIF
-#' `UserComment` field into additional metadata columns. Set to `FALSE` if parsing fails for your files.
-#' @return A tibble with the processed metadata.
+#' @param output_dir Character. Path to the main directory containing camera
+#'   folders with renamed images.
+#' @param output_file Character. Relative file path (from `output_dir`) for the
+#'   output CSV where metadata will be saved. The parent directory for this file
+#'   must already exist inside `output_dir`.
+#' @param UserComment Logical. Default `FALSE`. When `TRUE`, attempts to parse
+#'   and expand the EXIF `UserComment` field into additional metadata columns.
+#'   Set to `FALSE` if parsing fails for your files.
+#'
+#' @details
+#' **Expected minimum input columns (internal contract):** none. This function
+#' reads EXIF tags directly from image files under `output_dir` and appends a
+#' `Camera` column derived from each first-level folder name.
+#'
+#' **Produced columns:** varies by EXIF availability. Output always includes
+#' available EXIF fields plus `Camera`; when `UserComment = TRUE` and parsing is
+#' successful, it may also include `Image_dttm`, `File_date`, `File_hms`,
+#' `File_hour`, `File_minute`, and parsed fields such as `temp`/`bLuma`.
+#'
+#' **I/O side-effects:** writes one CSV to `file.path(output_dir, output_file)`.
+#' The function does not create missing parent directories for `output_file`.
+#'
+#' @return A tibble with processed metadata. Typical contract columns used by
+#' downstream functions include `Directory` and `FileName` (required by
+#' [process_training_images()]).
+#' @seealso [rename_images()], [generate_plot()], [process_training_images()],
+#'   [copy_in_batches()]
 #' @importFrom exifr read_exif
 #' @importFrom dplyr bind_rows mutate select left_join relocate
 #' @importFrom tidyr separate_wider_delim pivot_wider unnest
@@ -17,15 +38,22 @@
 #' @importFrom readr write_csv
 #' @export
 #' @examples
-#' # Define paths
-#' output_dir <- "~/Descargas/test1"
-#' output_file <- "12_ago_2024_metadata.csv"
+#' \dontrun{
+#' # Requires real image files with EXIF metadata.
+#' renamed_dir <- tempfile("cam2model_renamed_")
+#' dir.create(renamed_dir, recursive = TRUE)
+#' dir.create(file.path(renamed_dir, "camera_A"), recursive = TRUE)
 #'
-#' # Run the function
-#' metadata <- process_metadata(output_dir, output_file, UserComment = FALSE)
+#' # Copy real camera-trap images into `renamed_dir/camera_A` before running.
+#' meta <- process_metadata(
+#'   output_dir = renamed_dir,
+#'   output_file = "metadata.csv",
+#'   UserComment = FALSE
+#' )
 #'
-#' print(metadata)
-#'
+#' file.exists(file.path(renamed_dir, "metadata.csv"))
+#' head(meta)
+#' }
 
 process_metadata <- function(output_dir, output_file, UserComment = FALSE) {
   # Validations

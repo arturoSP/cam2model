@@ -5,11 +5,6 @@
 #' evenly sized groups (for example, 250 files per folder) while preserving a
 #' record of the operation.
 #'
-#' The input data frame must contain at least two columns:
-#'
-#' - `id`: unique or semi-unique identifier for each file
-#' - `path`: source path to the file on disk
-#'
 #' Files are assigned to folders according to their row order in `df`.
 #'
 #' @param df A `data.frame` containing at least the columns `id` and `path`.
@@ -29,6 +24,16 @@
 #'   `TRUE`.
 #'
 #' @details
+#' **Expected minimum input columns (contract):** `df` must include `id` and
+#' `path`.
+#'
+#' **Produced columns:** returns one row per valid input record with `id`,
+#' `path`, `source_exists`, `batch_id`, `batch_folder_name`, `dest_file_name`,
+#' `dest_path`, `copied`, and `status`.
+#'
+#' **I/O side-effects:** creates `output_dir` and batch subfolders when
+#' `dry_run = FALSE`; copies files into those subfolders unless `dry_run = TRUE`.
+#'
 #' The function creates one folder per batch using zero-padded sequential
 #' numbering, for example:
 #'
@@ -66,13 +71,14 @@
 #'   `"copy_failed"`, or `"dry_run"`.}
 #' }
 #'
+#' @seealso [rename_images()], [process_metadata()], [generate_plot()],
+#'   [process_training_images()]
 #' @importFrom fs dir_create file_copy file_exists path path_file
 #'
 #' @examples
-#' # Create a temporary source directory with example files
-#' src_dir <- file.path(tempdir(), "example_source")
-#' out_dir <- file.path(tempdir(), "example_output")
-#'
+#' # Create temporary source and output directories
+#' src_dir <- tempfile("cam2model_batch_src_")
+#' out_dir <- tempfile("cam2model_batch_out_")
 #' dir.create(src_dir, recursive = TRUE, showWarnings = FALSE)
 #' dir.create(out_dir, recursive = TRUE, showWarnings = FALSE)
 #'
