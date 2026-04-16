@@ -9,8 +9,11 @@ process_metadata(output_dir, output_file, UserComment = FALSE)
 \arguments{
 \item{output_dir}{Character. Path to the main directory containing camera folders with renamed images.}
 
-\item{output_file}{Character. Experimental. When set to TRUE, it will read and try to parse the info
-within the UserComment field. If you run it and the function fails, try with FALSE.}
+\item{output_file}{Character. Relative file path (from \code{output_dir}) for the output CSV where metadata will be saved.
+The parent directory for this file must already exist inside \code{output_dir}.}
+
+\item{UserComment}{Logical. Default \code{FALSE}. When \code{TRUE}, attempts to parse and expand the EXIF
+\code{UserComment} field into additional metadata columns. Set to \code{FALSE} if parsing fails for your files.}
 }
 \value{
 A tibble with the processed metadata.
