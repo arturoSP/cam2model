@@ -1,31 +1,35 @@
 # cam2model
 
-`cam2model` organiza un flujo de preparación de imágenes de cámaras trampa para entrenamiento y anotación.
+<p align="center">
+  <img src="man/figures/cam2model-logo.jpg" alt="cam2model for SAMP logo: a camera and fish" width="320">
+</p>
 
-## Flujo recomendado
+`cam2model` provides a workflow for preparing camera trap images for annotation and model training.
+
+## Recommended workflow
 
 1. `rename_images()`
 2. `process_metadata()`
-3. `generate_plot()` *(opcional)*
+3. `generate_plot()` *(optional)*
 4. `process_training_images()`
 5. `copy_in_batches()`
 
-## Contrato rápido por etapa
+## Quick reference by stage
 
-| Etapa | Entrada mínima | Salida principal | Artefactos I/O |
+| Stage | Minimum input | Main output | File operations |
 |---|---|---|---|
-| `rename_images()` | Directorio con imágenes | tibble de resultado (o lista con `plan`+`result`) | crea carpeta de sitio en `output_dir` y copia imágenes |
-| `process_metadata()` | Directorio de imágenes renombradas | tibble de metadatos | escribe `output_file` CSV |
-| `generate_plot()` | data frame con columnas usadas en estéticas | objeto `ggplot` | sin efectos en disco |
-| `process_training_images()` | CSV con `Directory` y `FileName` | tibble de muestra | crea `dest_dir`, escribe 2 CSV y copia opcional |
-| `copy_in_batches()` | data frame con `id` y `path` | data frame reporte por archivo | crea subcarpetas batch y copia (o simula con `dry_run`) |
+| `rename_images()` | Directory containing images | Result tibble (or a list with `plan` and `result`) | Creates a site folder in `output_dir` and copies images |
+| `process_metadata()` | Directory of renamed images | Metadata tibble | Writes the `output_file` CSV |
+| `generate_plot()` | Data frame with the columns used for aesthetics | `ggplot` object | No files written |
+| `process_training_images()` | CSV with `Directory` and `FileName` | Sample tibble | Creates `dest_dir`, writes two CSV files, and optionally copies images |
+| `copy_in_batches()` | Data frame with `id` and `path` | Per-file report data frame | Creates batch subfolders and copies files (or simulates the operation with `dry_run`) |
 
-## Ejemplo end-to-end (rutas temporales)
+## End-to-end example (temporary paths)
 
 ```r
 library(cam2model)
 
-# 1) Preparar rutas temporales
+# 1) Set up temporary paths
 raw_dir <- tempfile("cam2model_raw_")
 renamed_dir <- tempfile("cam2model_renamed_")
 train_dir <- tempfile("cam2model_train_")
@@ -35,17 +39,17 @@ dir.create(raw_dir, recursive = TRUE)
 dir.create(renamed_dir, recursive = TRUE)
 dir.create(train_dir, recursive = TRUE)
 
-# Copia imágenes reales de cámara trampa en raw_dir antes de ejecutar
-# file.copy("path_to_real_image.jpg", file.path(raw_dir, "cam1", "imagen.jpg"), recursive = TRUE)
+# Copy real camera trap images into raw_dir before running the next stages
+# file.copy("path_to_real_image.jpg", file.path(raw_dir, "cam1", "image.jpg"), recursive = TRUE)
 
-# 2) Renombrar/aplanar (requiere imágenes reales)
+# 2) Rename and flatten (requires real images)
 # renamed <- rename_images(input_dir = raw_dir, output_dir = renamed_dir, site_name = "demo")
 
-# 3) Extraer metadatos (requiere EXIF real)
+# 3) Extract metadata (requires real EXIF data)
 # metadata <- process_metadata(output_dir = renamed_dir, output_file = "metadata.csv", UserComment = FALSE)
 # metadata_csv <- file.path(renamed_dir, "metadata.csv")
 
-# 4) Ejemplo autocontenido para training sin EXIF real
+# 4) Self-contained training example without real EXIF data
 src_dir <- tempfile("cam2model_src_")
 dir.create(src_dir, recursive = TRUE)
 file_a <- file.path(src_dir, "a.jpg")
@@ -72,7 +76,7 @@ sampled <- process_training_images(
   show_progress = FALSE
 )
 
-# 5) Reorganizar en lotes (simulación)
+# 5) Reorganize into batches (dry run)
 batch_report <- copy_in_batches(
   df = data.frame(
     id = sprintf("img_%03d", seq_len(nrow(sampled))),
@@ -88,6 +92,6 @@ batch_report <- copy_in_batches(
 head(batch_report)
 ```
 
-## Vignette de flujo
+## Workflow vignette
 
-Consulta `vignettes/cam2model-workflow.Rmd` para una guía paso a paso con tabla de entradas/salidas/artefactos.
+See `vignettes/cam2model-workflow.Rmd` for a step-by-step guide with a table of inputs, outputs, and generated files.
