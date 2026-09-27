@@ -126,3 +126,122 @@ batch_report <- copy_in_batches(
 
 batch_report[, c("id", "batch_folder_name", "dest_file_name", "status")]
 ```
+
+---
+
+# English version
+
+## Objective
+
+This guide documents an end-to-end workflow for preparing camera trap data:
+
+`rename_images() -> process_metadata() -> generate_plot() (optional) -> process_training_images() -> copy_in_batches()`.
+
+## Inputs, outputs, and generated files by stage
+
+| Stage | Minimum input | In-memory output | Files written |
+|---|---|---|---|
+| `rename_images()` | `input_dir` containing images | Result tibble (or a list with `plan` + `result`) | Creates a site folder and copies renamed files |
+| `process_metadata()` | Folder containing renamed images | Metadata tibble | Writes a metadata CSV |
+| `generate_plot()` | Data frame and columns used for aesthetics | `ggplot` object | None |
+| `process_training_images()` | CSV with `Directory` and `FileName` | Sample tibble | Creates `dest_dir`, writes sample and annotation CSVs, and optionally copies images |
+| `copy_in_batches()` | Data frame with `id` and `path` | Report data frame | Creates batch folders and copies files (or simulates the operation with `dry_run`) |
+
+## Reproducible pipeline with temporary paths
+
+```{r}
+library(cam2model)
+
+# Temporary paths
+raw_dir <- tempfile("cam2model_raw_")
+renamed_dir <- tempfile("cam2model_renamed_")
+train_dir <- tempfile("cam2model_train_")
+batch_dir <- tempfile("cam2model_batches_")
+
+dir.create(raw_dir, recursive = TRUE)
+dir.create(renamed_dir, recursive = TRUE)
+dir.create(train_dir, recursive = TRUE)
+
+# NOTE: rename_images() and process_metadata() require real images (EXIF).
+# These calls are shown for reference; the following stages use synthetic data.
+
+# renamed <- rename_images(
+#   input_dir = raw_dir,
+#   output_dir = renamed_dir,
+#   site_name = "demo_site"
+# )
+
+# metadata <- process_metadata(
+#   output_dir = renamed_dir,
+#   output_file = "metadata.csv",
+#   UserComment = FALSE
+# )
+
+# ------------------------------------------------------------------
+# Minimal synthetic metadata to demonstrate process_training_images()
+# ------------------------------------------------------------------
+src_dir <- tempfile("cam2model_src_")
+dir.create(src_dir, recursive = TRUE)
+
+img1 <- file.path(src_dir, "img1.jpg")
+img2 <- file.path(src_dir, "img2.jpg")
+writeBin(charToRaw("x"), img1)
+writeBin(charToRaw("y"), img2)
+
+metadata_tbl <- data.frame(
+  Directory = c(src_dir, src_dir),
+  FileName = c("img1.jpg", "img2.jpg"),
+  File_hour = c(9, 14),
+  stringsAsFactors = FALSE
+)
+metadata_csv <- tempfile("cam2model_metadata_", fileext = ".csv")
+readr::write_csv(metadata_tbl, metadata_csv)
+
+sampled <- process_training_images(
+  metadata_file = metadata_csv,
+  dest_dir = train_dir,
+  output_sample_file = "sampled_images.csv",
+  output_annotation_file = "annotation_data.csv",
+  sample_proportion = 1,
+  copy_images = FALSE,
+  show_progress = FALSE
+)
+
+sampled
+```
+
+## Optional plot
+
+```{r}
+plot_data <- data.frame(
+  Image_dttm = as.POSIXct("2024-08-01 00:00:00", tz = "UTC") + 0:3 * 3600,
+  bLuma = c(120, 130, 125, 140),
+  Camera = c("C1", "C1", "C2", "C2")
+)
+
+generate_plot(
+  processed_metadata = plot_data,
+  x = Image_dttm,
+  y = bLuma,
+  color = Camera,
+  facets = Camera
+)
+```
+
+## Batch copying (dry run)
+
+```{r}
+batch_report <- copy_in_batches(
+  df = data.frame(
+    id = sprintf("img_%03d", seq_len(nrow(sampled))),
+    path = sampled$file_path,
+    stringsAsFactors = FALSE
+  ),
+  output_dir = batch_dir,
+  batch_size = 250L,
+  dry_run = TRUE,
+  verbose = FALSE
+)
+
+batch_report[, c("id", "batch_folder_name", "dest_file_name", "status")]
+```
