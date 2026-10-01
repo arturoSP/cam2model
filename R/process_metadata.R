@@ -142,7 +142,7 @@ process_metadata <- function(output_dir, output_file, UserComment = FALSE) {
     images <- list.files(
       camera_dir,
       full.names = TRUE,
-      pattern = "\\.(jpg|png)$",
+      pattern = "\\.(jpg|png|jpeg|tif|tiff)$",
       ignore.case = TRUE
     )
 
