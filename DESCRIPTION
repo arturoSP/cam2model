@@ -11,7 +11,7 @@ Authors@R: c(person(given = "Edlin",
                       role = c("aut", "cre"), 
                       email = "sp.arturo@gmail.com",
                       comment = c(ORCID = "0000-0002-1691-286X")))
-Description: The `cam2model` package provides tools for preprocessing camera trap
+Description: Provides tools for preprocessing camera trap
     image data to prepare it for training machine learning models. It automates tasks 
     such as extracting EXIF metadata, processing and analyzing image attributes, 
     selecting relevant images (e.g., daytime photos), sampling subsets, and managing
@@ -23,5 +23,6 @@ Encoding: UTF-8
 Roxygen: list(markdown = TRUE)
 RoxygenNote: 7.3.3
 Imports: dplyr, tidyr, lubridate, stringr, ggplot2, readr, fs, exifr, rlang, tibble, progressr
-Suggests: future, future.apply, knitr, rmarkdown
+Suggests: future, future.apply, knitr, rmarkdown, testthat
+Depends: R (>= 4.1.0)
 VignetteBuilder: knitr
