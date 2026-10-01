@@ -22,6 +22,7 @@
 #' @importFrom tibble tibble
 #' @importFrom dplyr bind_rows
 #' @importFrom progressr with_progress progressor
+#' @importFrom stats ave
 #' @keywords internal
 #' @noRd
 
@@ -235,7 +236,7 @@ build_rename_plan <- function(
 
   # asegurar nombres únicos antes de copiar
   if (anyDuplicated(plan_tbl$new_name) > 0) {
-    idx <- ave(seq_len(nrow(plan_tbl)), plan_tbl$new_name, FUN = seq_along)
+    idx <- stats::ave(seq_len(nrow(plan_tbl)), plan_tbl$new_name, FUN = seq_along)
     dup <- duplicated(plan_tbl$new_name) |
       duplicated(plan_tbl$new_name, fromLast = TRUE)
 

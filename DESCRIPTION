@@ -1,6 +1,6 @@
 Package: cam2model
 Title: Preprocessing Camera Trap Data for Machine Learning Models
-Version: 0.1.0
+Version: 0.3.0
 Authors@R: c(person(given = "Edlin", 
                       family = "Guerra-Castro", 
                       role = c("aut", "cph"), 

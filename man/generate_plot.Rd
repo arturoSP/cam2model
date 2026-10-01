@@ -47,12 +47,6 @@ function returns a \code{ggplot} object combining \code{geom_line()} and \code{g
 
 \strong{I/O side-effects:} none.
 }
-\seealso{
-\code{\link[=rename_images]{rename_images()}},
-\code{\link[=process_metadata]{process_metadata()}},
-\code{\link[=process_training_images]{process_training_images()}},
-\code{\link[=copy_in_batches]{copy_in_batches()}}
-}
 \examples{
 demo_metadata <- data.frame(
   Image_dttm = as.POSIXct("2024-08-01 00:00:00", tz = "UTC") + 0:5 * 3600,
@@ -69,4 +63,8 @@ p <- generate_plot(
   facets = Camera
 )
 p
+}
+\seealso{
+\code{\link[=rename_images]{rename_images()}}, \code{\link[=process_metadata]{process_metadata()}}, \code{\link[=process_training_images]{process_training_images()}},
+\code{\link[=copy_in_batches]{copy_in_batches()}}
 }

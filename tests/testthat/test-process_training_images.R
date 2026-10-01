@@ -39,7 +39,7 @@ test_that("process_training_images validates sample_proportion and filters", {
       sample_proportion = 2,
       copy_images = FALSE
     ),
-    "numeric value in \(0, 1\]"
+    "numeric value in \\(0, 1\\]"
   )
 
   expect_error(

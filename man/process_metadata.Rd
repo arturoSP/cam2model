@@ -40,12 +40,6 @@ successful, it may also include \code{Image_dttm}, \code{File_date}, \code{File_
 \strong{I/O side-effects:} writes one CSV to \code{file.path(output_dir, output_file)}.
 The function does not create missing parent directories for \code{output_file}.
 }
-\seealso{
-\code{\link[=rename_images]{rename_images()}},
-\code{\link[=generate_plot]{generate_plot()}},
-\code{\link[=process_training_images]{process_training_images()}},
-\code{\link[=copy_in_batches]{copy_in_batches()}}
-}
 \examples{
 \dontrun{
 # Requires real image files with EXIF metadata.
@@ -63,4 +57,8 @@ meta <- process_metadata(
 file.exists(file.path(renamed_dir, "metadata.csv"))
 head(meta)
 }
+}
+\seealso{
+\code{\link[=rename_images]{rename_images()}}, \code{\link[=generate_plot]{generate_plot()}}, \code{\link[=process_training_images]{process_training_images()}},
+\code{\link[=copy_in_batches]{copy_in_batches()}}
 }

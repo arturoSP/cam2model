@@ -30,7 +30,7 @@ image list.}
 \item{output_annotation_file}{Character. Name of the CSV file storing the
 annotation template.}
 
-\item{sample_proportion}{Numeric in \code{(0, 1]}. Proportion of images to sample
+\item{sample_proportion}{Numeric in \verb{(0, 1]}. Proportion of images to sample
 within each directory.}
 
 \item{filters}{A list of filtering rules. Each rule must be a list with:
@@ -81,12 +81,6 @@ must be present in \code{metadata_file}.
 \code{copy_images = TRUE}.
 }
 }
-\seealso{
-\code{\link[=rename_images]{rename_images()}},
-\code{\link[=process_metadata]{process_metadata()}},
-\code{\link[=generate_plot]{generate_plot()}},
-\code{\link[=copy_in_batches]{copy_in_batches()}}
-}
 \examples{
 src_dir <- tempfile("cam2model_train_src_")
 dest_dir <- tempfile("cam2model_train_out_")
@@ -114,10 +108,15 @@ sampled <- process_training_images(
   output_annotation_file = "annotation_data.csv",
   sample_proportion = 1,
   copy_images = FALSE,
-  show_progress = FALSE
+  show_progress = FALSE,
+  parallel = FALSE
 )
 
 sampled
 file.exists(file.path(dest_dir, "sampled_images.csv"))
 file.exists(file.path(dest_dir, "annotation_data.csv"))
+}
+\seealso{
+\code{\link[=rename_images]{rename_images()}}, \code{\link[=process_metadata]{process_metadata()}}, \code{\link[=generate_plot]{generate_plot()}},
+\code{\link[=copy_in_batches]{copy_in_batches()}}
 }

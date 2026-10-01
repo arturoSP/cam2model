@@ -65,3 +65,4 @@ test_that("copy_in_batches copies files and reports missing sources", {
   copied_idx <- which(report$status == "copied")
   expect_true(file.exists(report$dest_path[copied_idx]))
 })
+

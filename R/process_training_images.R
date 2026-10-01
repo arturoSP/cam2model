@@ -79,7 +79,8 @@
 #'   output_annotation_file = "annotation_data.csv",
 #'   sample_proportion = 1,
 #'   copy_images = FALSE,
-#'   show_progress = FALSE
+#'   show_progress = FALSE,
+#'   parallel = FALSE
 #' )
 #'
 #' sampled

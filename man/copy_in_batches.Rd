@@ -64,6 +64,8 @@ evenly sized groups (for example, 250 files per folder) while preserving a
 record of the operation.
 }
 \details{
+Files are assigned to folders according to their row order in \code{df}.
+
 \strong{Expected minimum input columns (contract):} \code{df} must include \code{id} and
 \code{path}.
 
@@ -89,12 +91,10 @@ Destination file names are generated from the source file name. When
 
 If duplicates remain within a batch, they are disambiguated with
 \code{\link[base:make.unique]{base::make.unique()}}.
-}
-\seealso{
-\code{\link[=rename_images]{rename_images()}},
-\code{\link[=process_metadata]{process_metadata()}},
-\code{\link[=generate_plot]{generate_plot()}},
-\code{\link[=process_training_images]{process_training_images()}}
+
+The function returns a data frame describing the outcome for each row,
+including whether the source existed, the assigned batch, the destination
+path, and the copy status.
 }
 \examples{
 # Create temporary source and output directories
@@ -138,4 +138,9 @@ report <- copy_in_batches(
 )
 
 report[, c("id", "dest_path", "status")]
+
+}
+\seealso{
+\code{\link[=rename_images]{rename_images()}}, \code{\link[=process_metadata]{process_metadata()}}, \code{\link[=generate_plot]{generate_plot()}},
+\code{\link[=process_training_images]{process_training_images()}}
 }

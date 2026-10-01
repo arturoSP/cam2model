@@ -70,14 +70,8 @@ renaming plan plus \code{copied}.
 }
 }
 
-\strong{I/O side-effects:} creates \code{<output_dir>/<site_name>} when needed and
+\strong{I/O side-effects:} creates \verb{<output_dir>/<site_name>} when needed and
 copies files to that folder using standardized names.
-}
-\seealso{
-\code{\link[=process_metadata]{process_metadata()}},
-\code{\link[=generate_plot]{generate_plot()}},
-\code{\link[=process_training_images]{process_training_images()}},
-\code{\link[=copy_in_batches]{copy_in_batches()}}
 }
 \examples{
 \dontrun{
@@ -96,4 +90,8 @@ result <- rename_images(
 )
 head(result)
 }
+}
+\seealso{
+\code{\link[=process_metadata]{process_metadata()}}, \code{\link[=generate_plot]{generate_plot()}}, \code{\link[=process_training_images]{process_training_images()}},
+\code{\link[=copy_in_batches]{copy_in_batches()}}
 }
