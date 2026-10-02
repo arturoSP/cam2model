@@ -2,6 +2,13 @@
 output: github_document
 ---
 
+
+<!-- badges: start -->
+
+[![CRAN
+status](https://www.r-pkg.org/badges/version/cam2model)](https://CRAN.R-project.org/package=cam2model)
+<!-- badges: end -->
+
 # cam2model
 
 <p align="center">

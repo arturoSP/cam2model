@@ -1,23 +1,32 @@
+
+<!-- badges: start -->
+
+[![CRAN
+status](https://www.r-pkg.org/badges/version/cam2model)](https://CRAN.R-project.org/package=cam2model)
+<!-- badges: end -->
+
 # cam2model
 
 <p align="center">
-  <img src="man/figures/cam2model-logo.jpg" alt="cam2model for SAMP logo: a camera and fish" width="320">
+
+<img src="man/figures/cam2model-logo.jpg" alt="cam2model for SAMP logo: a camera and fish" width="320">
 </p>
 
-`cam2model` provides a workflow for preparing camera trap images for annotation and model training.
+`cam2model` provides a workflow for preparing camera trap images for
+annotation and model training.
 
 ## Recommended workflow
 
-1. `rename_images()`
-2. `process_metadata()`
-3. `generate_plot()` *(optional)*
-4. `process_training_images()`
-5. `copy_in_batches()`
+1.  `rename_images()`
+2.  `process_metadata()`
+3.  `generate_plot()` *(optional)*
+4.  `process_training_images()`
+5.  `copy_in_batches()`
 
 ## Quick reference by stage
 
 | Stage | Minimum input | Main output | File operations |
-|---|---|---|---|
+|----|----|----|----|
 | `rename_images()` | Directory containing images | Result tibble (or a list with `plan` and `result`) | Creates a site folder in `output_dir` and copies images |
 | `process_metadata()` | Directory of renamed images | Metadata tibble | Writes the `output_file` CSV |
 | `generate_plot()` | Data frame with the columns used for aesthetics | `ggplot` object | No files written |
@@ -26,7 +35,7 @@
 
 ## End-to-end example (temporary paths)
 
-```r
+``` r
 library(cam2model)
 
 # 1) Set up temporary paths
@@ -94,4 +103,5 @@ head(batch_report)
 
 ## Workflow vignette
 
-See `vignettes/cam2model-workflow.Rmd` for a step-by-step guide with a table of inputs, outputs, and generated files.
+See `vignettes/cam2model-workflow.Rmd` for a step-by-step guide with a
+table of inputs, outputs, and generated files.
