@@ -1,0 +1,27 @@
+utils::globalVariables(
+  c(
+    "key",
+    "value",
+    "FileName",
+    "Image_dttm",
+    "File_date",
+    "File_hms",
+    "File_hour",
+    "File_minute",
+    "FileModifyDate",
+    "HV1.1.9.4",
+    "ID",
+    "moon",
+    "temp",
+    "bLuma",
+    "sEV",
+    "cEV",
+    "cEv",
+    "batAdc",
+    "batPer",
+    "FileAccessDate",
+    "FileInodeChangeDate",
+    "Directory",
+    "file_path"
+  )
+)
